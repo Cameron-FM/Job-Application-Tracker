@@ -12,13 +12,13 @@ leaves your machine via this repo. A built-in backup system (see
 [Backups & cloud save](#backups--cloud-save)) can snapshot everything automatically
 into a cloud-synced folder so you never lose it and can move between machines.
 
-<p align="center">
-  <img src="app/launcher/JobTracker-icon.png" alt="Job Tracker icon" width="120">
-</p>
-
 ## Quick start
 
 Never touched a terminal before? This is all you need.
+
+<p align="center">
+  <img src="app/launcher/JobTracker-icon.png" alt="Job Tracker icon" width="60">
+</p>
 
 ### macOS
 
