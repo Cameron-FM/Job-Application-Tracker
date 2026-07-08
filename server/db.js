@@ -1,16 +1,24 @@
-const path = require('path');
-const fs = require('fs');
 const Database = require('better-sqlite3');
+const { DATA_DIR, FILES_DIR, DB_PATH } = require('./db-paths');
+const backup = require('./backup');
+const { loadConfig } = require('./config');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const FILES_DIR = path.join(DATA_DIR, 'files');
-fs.mkdirSync(FILES_DIR, { recursive: true });
+// Before opening the DB: apply a manual restore staged before the last shutdown.
+// Doing the file swap while nothing has the DB open is what keeps it safe.
+backup.applyPendingRestore();
 
-const db = new Database(path.join(DATA_DIR, 'ats.db'));
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+function openDb() {
+  const d = new Database(DB_PATH);
+  d.pragma('journal_mode = WAL');
+  d.pragma('foreign_keys = ON');
+  initSchema(d);
+  return d;
+}
 
-db.exec(`
+let db = openDb();
+
+function initSchema(db) {
+  db.exec(`
 CREATE TABLE IF NOT EXISTS companies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
@@ -100,17 +108,45 @@ CREATE INDEX IF NOT EXISTS idx_activities_job ON activities(job_id);
 CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_id);
 `);
 
-// Idempotent migrations: add columns to databases created before these fields existed.
-// (SQLite has no ADD COLUMN IF NOT EXISTS, so we check the table shape first.)
-function ensureColumn(table, column, ddl) {
-  const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
-  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  // Idempotent migrations: add columns to databases created before these fields existed.
+  // (SQLite has no ADD COLUMN IF NOT EXISTS, so we check the table shape first.)
+  const ensureColumn = (table, column, ddl) => {
+    const exists = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+    if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  };
+  ensureColumn('companies', 'summary', "summary TEXT NOT NULL DEFAULT ''");
+  ensureColumn('companies', 'description', "description TEXT NOT NULL DEFAULT ''");
+  ensureColumn('jobs', 'application_url', "application_url TEXT NOT NULL DEFAULT ''");
+  ensureColumn('jobs', 'summary', "summary TEXT NOT NULL DEFAULT ''");
+  ensureColumn('jobs', 'raw_posting', "raw_posting TEXT NOT NULL DEFAULT ''");
+  ensureColumn('jobs', 'referred_by_contact_id', 'referred_by_contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL');
 }
-ensureColumn('companies', 'summary', "summary TEXT NOT NULL DEFAULT ''");
-ensureColumn('companies', 'description', "description TEXT NOT NULL DEFAULT ''");
-ensureColumn('jobs', 'application_url', "application_url TEXT NOT NULL DEFAULT ''");
-ensureColumn('jobs', 'summary', "summary TEXT NOT NULL DEFAULT ''");
-ensureColumn('jobs', 'raw_posting', "raw_posting TEXT NOT NULL DEFAULT ''");
-ensureColumn('jobs', 'referred_by_contact_id', 'referred_by_contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL');
 
-module.exports = { db, DATA_DIR, FILES_DIR };
+// Auto-restore on a fresh device: if this DB has no user data yet and a backup with
+// real data exists in the configured folder, pull it in automatically on first run.
+// The empty-DB guard means a populated device is never overwritten.
+function isEmpty(db) {
+  const n = (t) => db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n;
+  return n('companies') === 0 && n('jobs') === 0 && n('contacts') === 0;
+}
+
+try {
+  const config = loadConfig();
+  if (config.autoRestoreOnEmpty && isEmpty(db)) {
+    const latest = backup.findLatestBackup();
+    if (latest && latest.hasRows) {
+      db.close();
+      backup.swapBackupIntoData(latest.path);
+      db = openDb();
+      backup.recordRestore({ name: latest.name, device: latest.device, at: new Date().toISOString(), auto: true });
+      console.log(`Auto-restored most recent backup: ${latest.name}`);
+    }
+  }
+} catch (e) {
+  console.error('Auto-restore check failed (continuing with local DB):', e.message);
+}
+
+// Keep CV file paths valid after a restore or a moved project folder.
+backup.normalizeDocumentPaths(db);
+
+module.exports = { db, DATA_DIR, FILES_DIR, DB_PATH };

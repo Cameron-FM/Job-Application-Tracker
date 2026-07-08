@@ -7,6 +7,7 @@ const NAV = [
   { to: '/companies', label: 'Companies', icon: '🏢' },
   { to: '/people', label: 'People', icon: '👥' },
   { to: '/cvs', label: 'CV Library', icon: '📄' },
+  { to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
 export default function Layout({ children }) {
@@ -30,7 +31,7 @@ export default function Layout({ children }) {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">Data stays on this machine</div>
+        <div className="sidebar-footer">Runs locally · backups in Settings</div>
       </aside>
       <main className="content">{children}</main>
       <TextTooltip />

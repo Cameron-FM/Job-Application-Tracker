@@ -6,6 +6,17 @@ backend in `server/`, React/Vite client in `client/`. All data lives in `data/`
 `~/.local/node`; if `npm` isn't found, prefix commands with
 `export PATH="$HOME/.local/node/bin:$PATH" && …`.
 
+## Read this first: [ARCHITECTURE.md](ARCHITECTURE.md) — the system bible
+
+Before making non-trivial changes (schema, routes, pages, startup/backup logic),
+**read [ARCHITECTURE.md](ARCHITECTURE.md)**. It documents how everything is built, the
+data model, the module dependency rules, the backup/restore startup sequence, and a list
+of gotchas that will cause bugs if you don't know them (WAL's 3 files, the circular-dep
+rule, "adding a column takes two edits," absolute document paths, enums living in two
+places, port 3400 being single-occupancy, etc.). **Keep it up to date:** when you change
+any of those things, update ARCHITECTURE.md in the same change. This file (CLAUDE.md)
+covers the import contracts below; ARCHITECTURE.md covers how the system works.
+
 ## Ask for missing inputs — don't guess, and don't leave gaps silently
 
 When adding or updating a job or contact, some fields simply aren't in the source
