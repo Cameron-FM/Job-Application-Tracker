@@ -16,7 +16,7 @@ into a cloud-synced folder so you never lose it and can move between machines.
 
 
 
-<p align="center">
+<p align="left">
   <img src="app/launcher/JobTracker-icon.png" alt="Job Tracker icon" width="60"> Never touched a terminal before? This is all you need.
 </p>
 
