@@ -12,6 +12,11 @@ const DEFAULTS = {
   backupOnClose: true,
   autoRestoreOnEmpty: true,
   retentionCount: 50,
+  // Manual cloud-sync override (a provider name string, or null = auto-detect).
+  // Covers setups path-detection can't see — e.g. Google Drive's "sync this
+  // folder from computer" feature mirroring data/backups in place, where the
+  // path stays local but the folder IS cloud-synced.
+  storageOverride: null,
 };
 
 function loadConfig() {

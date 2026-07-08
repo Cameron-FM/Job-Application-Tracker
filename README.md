@@ -12,6 +12,52 @@ leaves your machine via this repo. A built-in backup system (see
 [Backups & cloud save](#backups--cloud-save)) can snapshot everything automatically
 into a cloud-synced folder so you never lose it and can move between machines.
 
+<p align="center">
+  <img src="app/launcher/JobTracker-icon.png" alt="Job Tracker icon" width="120">
+</p>
+
+## Quick start
+
+Never touched a terminal before? This is all you need.
+
+### macOS
+
+1. **Install Node.js** (one time only) — download the **LTS** installer from
+   [nodejs.org](https://nodejs.org/) and run it like any other app installer.
+2. **Download this project** to your Mac (e.g. `git clone`, or download the ZIP from
+   GitHub and unzip it) — anywhere you like, e.g. your Desktop.
+3. **Double-click `Job Tracker.app`** in the project folder. First launch installs
+   everything and takes a minute or two; it then opens your browser to the app
+   automatically. Every time after that is instant.
+
+Want it one click away? Drag `Job Tracker.app` onto your **Dock**, or right-click it →
+**Add to Dock**, to launch it from there next time. **Don't move `Job Tracker.app` out
+of the project folder** — it needs to stay next to `data/` and `app/` to work; make a
+shortcut/alias elsewhere instead if you want it somewhere else.
+
+→ More detail: [Running it as a desktop app](#running-it-as-a-desktop-app),
+[Requirements](#requirements).
+
+### Windows
+
+1. **Install Node.js** (one time only) — download the **LTS** installer from
+   [nodejs.org](https://nodejs.org/) and run it like any other app installer.
+2. **Download this project** to your PC (e.g. `git clone`, or download the ZIP from
+   GitHub and unzip it) — anywhere you like, e.g. your Desktop.
+3. **Double-click `launch.bat`** in the project folder. First launch installs
+   everything and takes a minute or two; it then opens your browser to the app
+   automatically. Every time after that is instant.
+
+Want it one click away? Right-click `launch.bat` → **Send to → Desktop (create
+shortcut)**, or pin that shortcut to your **Start menu/taskbar**. (If you'd rather have
+a proper `Job Tracker.exe` with an icon to pin instead, see the optional step in
+[Running it as a desktop app](#running-it-as-a-desktop-app).) **Don't move `launch.bat`
+out of the project folder** — it needs to stay next to `data/` and `app/` to work;
+pin/shortcut it instead if you want quicker access.
+
+→ More detail: [Running it as a desktop app](#running-it-as-a-desktop-app),
+[Requirements](#requirements).
+
 ## Features
 
 - **Dashboard** — active applications, interviews in progress, overdue follow-ups, and
@@ -31,6 +77,10 @@ into a cloud-synced folder so you never lose it and can move between machines.
   your latest backup on first launch. Managed from the **Settings** tab.
 - **Hover tooltips** — hovering any truncated text (summaries, next steps, etc.) shows
   the full content in a small card at your cursor.
+- **Desktop launcher** — double-click `Job Tracker.app` (macOS) or `launch.bat` (Windows)
+  instead of using a terminal. It checks Node.js is installed, installs/updates
+  dependencies, starts the server, and opens your browser automatically — and shuts the
+  server back down once you close the app. See [Running it as a desktop app](#running-it-as-a-desktop-app).
 - **AI-assisted importing** — this repo includes a [CLAUDE.md](CLAUDE.md) contract that
   lets [Claude Code](https://claude.com/claude-code) turn a pasted job posting or
   LinkedIn profile into a fully populated job/contact record, deduping and linking
@@ -42,12 +92,43 @@ into a cloud-synced folder so you never lose it and can move between machines.
 
 ## Run it
 
+**Easiest: double-click to launch** — see [Running it as a desktop app](#running-it-as-a-desktop-app)
+below. No terminal needed.
+
+**Or from a terminal:**
+
 ```bash
+cd app             # all program files (and package.json) live in app/
 npm install        # first time only (also installs the client)
 npm start          # builds the UI and serves the app
 ```
 
 Then open **http://localhost:3400**.
+
+## Running it as a desktop app
+
+After cloning/downloading this repo, you can launch Job Tracker with a normal double-click,
+the same as any other app:
+
+- **macOS** — double-click **`Job Tracker.app`**.
+- **Windows** — double-click **`launch.bat`**. (Windows runs `.bat` files directly — no
+  extra wrapper is needed for it to work. If you'd like a proper `Job Tracker.exe` with a
+  custom icon instead, that's a one-time optional step: run `app\launcher\windows\make_exe.bat`
+  on Windows. It uses the C# compiler that ships with Windows — nothing to install.)
+
+Either way, the launcher automatically:
+1. Checks that Node.js is installed (and tells you where to get it if not).
+2. Reuses an already-running instance if you double-click again, instead of starting a
+   second one.
+3. Installs/updates dependencies (`npm install`) so things stay in sync after a `git pull`.
+4. Starts the server in the background and waits for it to come up.
+5. Opens your default browser to the app.
+6. Watches for you to close the app — once no browser tab has been open for about a
+   minute, the server shuts itself down (taking a backup first, per
+   [Backups & cloud save](#backups--cloud-save)).
+
+If anything goes wrong, check **`data/logs/app.log`** in the project folder — the launcher
+writes everything there.
 
 ## Backups & cloud save
 
@@ -76,12 +157,21 @@ app** — the app just saves files into the folder, and your cloud app uploads t
    **“Cloud-synced · <your provider>”**. Click **Back up now** — the backup appears in
    the list *and* shows up in your cloud folder. Done.
 
+**Alternative: sync the app's own backups folder in place.** Some cloud apps (e.g.
+Google Drive's “sync this folder from computer”) can sync a folder *where it already
+is* instead of you moving anything. In that case: leave the backup folder at its
+default, tell your cloud app to sync the project's `data/backups` folder, and then in
+**Settings** set **“This folder is synced by”** to your provider — the badge can't
+auto-detect in-place syncing, so this tells the app it's cloud-synced. (The
+**Reset to default** button next to the folder field brings back the default path any
+time.)
+
 ### Moving to another computer
 
-1. Install and run the app on the new computer (`npm install`, then `npm start`).
+1. Install and run the app on the new computer (double-click the launcher, or `cd app && npm install && npm start`).
 2. Sign that computer into the **same** cloud drive, so the backup folder syncs down.
 3. Open **Settings** and set the **Backup folder** to that same folder.
-4. Restart the app (`Ctrl+C`, then `npm start`). It sees it's a fresh machine and
+4. Restart the app (`Ctrl+C`, then `npm start` — or just relaunch via the icon). It sees it's a fresh machine and
    **automatically restores your most recent backup** — your jobs, contacts, and CVs
    are all there.
 
@@ -93,10 +183,11 @@ a restore always has the real files to read.
 ## Other commands
 
 ```bash
-npm run dev              # development mode (hot reload) at http://localhost:5173
+cd app                    # run all of these from inside app/
+npm run dev               # development mode (hot reload) at http://localhost:5173
 npm run seed              # load a few sample jobs/companies/contacts to explore with
 npm run import            # import a job from JSON (see CLAUDE.md)
-npm run import-contact     # import a contact from JSON (see CLAUDE.md)
+npm run import-contact    # import a contact from JSON (see CLAUDE.md)
 npm run scan-documents    # register CV files dropped straight into data/files/
 ```
 
@@ -105,11 +196,16 @@ To start fresh, stop the app and delete the `data/` folder.
 ## Project structure
 
 ```
-server/     Express + SQLite backend (server/db.js has the schema)
-client/     React + Vite frontend
-scripts/    CLI importers used by the app and by Claude Code
-data/       SQLite database + uploaded CVs — gitignored, created on first run
+Job Tracker.app/   macOS launcher — double-click to run
+launch.bat         Windows launcher — double-click to run
+data/              Your data: SQLite database, CVs, backups, logs — gitignored
+app/               Everything else: the server, UI, scripts, launcher internals, docs
+README.md          This file
+CLAUDE.md          Contract for AI-assisted importing (must stay at the root)
 ```
+
+For the full technical picture (data model, module structure, the backup/restore and
+session-lifecycle design, and known gotchas), see [ARCHITECTURE.md](app/ARCHITECTURE.md).
 
 ## Privacy note
 

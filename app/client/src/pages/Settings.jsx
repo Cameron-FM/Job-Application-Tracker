@@ -43,6 +43,7 @@ export default function Settings() {
         backupOnClose: c.backupOnClose,
         autoRestoreOnEmpty: c.autoRestoreOnEmpty,
         retentionCount: c.retentionCount,
+        storageOverride: c.storageOverride || '',
       });
     }
   }, [status, form]);
@@ -93,6 +94,7 @@ export default function Settings() {
         autoRestoreOnEmpty: form.autoRestoreOnEmpty,
         retentionCount: Number(form.retentionCount),
         autoBackup: { enabled: form.autoEnabled, intervalMinutes: Number(form.intervalMinutes) },
+        storageOverride: form.storageOverride || null,
       });
       setNotice({ type: 'ok', text: 'Settings saved.' });
       reloadStatus();
@@ -131,7 +133,9 @@ export default function Settings() {
         <div className="card-header">
           <h2>Current status</h2>
           <span className={`badge-mode ${cloud ? 'is-cloud' : 'is-local'}`}>
-            {cloud ? `☁ Cloud-synced · ${status.storage.provider}` : '💻 Local only'}
+            {cloud
+              ? `☁ Cloud-synced · ${status.storage.provider}${status.storage.overridden ? ' (set manually)' : ''}`
+              : '💻 Local only'}
           </span>
         </div>
         <dl className="detail-list detail-list-stack">
@@ -143,9 +147,11 @@ export default function Settings() {
         </dl>
         {!cloud && (
           <p className="hint" style={{ marginTop: 10 }}>
-            Tip: to back up to the cloud, set the backup folder below to a synced folder
-            (e.g. Google Drive, Dropbox, or iCloud Drive). The app writes the files there and your
-            cloud app uploads them — no accounts or keys needed here.
+            Tip: to back up to the cloud, either set the backup folder below to a synced folder
+            (e.g. Google Drive, Dropbox, or iCloud Drive), or — if your cloud app syncs this
+            project's own backups folder in place (like Google Drive's "sync this folder from
+            computer") — pick your provider under "This folder is synced by" below. The app writes
+            the files; your cloud app uploads them — no accounts or keys needed here.
           </p>
         )}
         <div className="header-actions" style={{ marginTop: 14 }}>
@@ -207,8 +213,31 @@ export default function Settings() {
         <div className="form-grid">
           <div className="field full">
             <label className="field-label">Backup folder</label>
-            <input value={form.backupDir} onChange={(e) => setForm({ ...form, backupDir: e.target.value })}
-              placeholder="/Users/you/Library/CloudStorage/GoogleDrive-…/JobTracker" />
+            <div className="input-row">
+              <input value={form.backupDir} onChange={(e) => setForm({ ...form, backupDir: e.target.value })}
+                placeholder="/Users/you/Library/CloudStorage/GoogleDrive-…/JobTracker" />
+              <button type="button" className="btn"
+                disabled={form.backupDir === status.defaultBackupDir}
+                title={`Reset to the project's own backups folder:\n${status.defaultBackupDir}`}
+                onClick={() => setForm({ ...form, backupDir: status.defaultBackupDir })}>
+                Reset to default
+              </button>
+            </div>
+          </div>
+          <div className="field full">
+            <label className="field-label">This folder is synced by</label>
+            <select value={form.storageOverride}
+              onChange={(e) => setForm({ ...form, storageOverride: e.target.value })}>
+              <option value="">Auto-detect from the folder path</option>
+              <option value="Google Drive">Google Drive (e.g. "sync this folder from computer")</option>
+              <option value="Dropbox">Dropbox</option>
+              <option value="iCloud Drive">iCloud Drive</option>
+              <option value="OneDrive">OneDrive</option>
+              <option value="Box">Box</option>
+              <option value="Cloud">Other cloud sync</option>
+            </select>
+            <span className="hint">Only needed when your cloud app syncs the folder in place and
+              the badge still says "Local only" — this tells the app it's actually cloud-synced.</span>
           </div>
           <div className="field">
             <label className="field-label">This device's name</label>

@@ -213,16 +213,22 @@ function deleteSnapshot(name) {
 function getStatus() {
   const config = loadConfig();
   const { dir, ok, error } = currentDir();
-  const mode = detectStorageMode(dir);
+  // Manual override wins over path detection — for folders that ARE cloud-synced
+  // but whose path doesn't reveal it (e.g. Google Drive's "sync this folder from
+  // computer" mirroring data/backups in place). See config.DEFAULTS.storageOverride.
+  const mode = config.storageOverride
+    ? { mode: 'cloud', provider: config.storageOverride, overridden: true }
+    : { ...detectStorageMode(dir), overridden: false };
   const state = readState();
   let liveCounts = null;
   try { liveCounts = countRows(require('./db').db); } catch { /* db may not expose during rare states */ }
   return {
     config,
     backupDir: dir,
+    defaultBackupDir: require('./config').DEFAULTS.backupDir,
     writable: ok,
     dirError: error,
-    storage: mode,           // { mode: 'local' | 'cloud', provider }
+    storage: mode,           // { mode: 'local' | 'cloud', provider, overridden }
     lastBackupAt: state.lastBackupAt || null,
     lastBackupName: state.lastBackupName || null,
     restoredFrom: state.restoredFrom || null,

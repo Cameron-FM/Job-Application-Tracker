@@ -1,15 +1,15 @@
 # Job Tracker — project guide for Claude
 
 A personal, locally-run job-application tracker (mini-ATS). Node/Express + SQLite
-backend in `server/`, React/Vite client in `client/`. All data lives in `data/`
+backend in `app/server/`, React/Vite client in `app/client/`. All data lives in `data/`
 (the `ats.db` SQLite file + uploaded CV files). Node.js is installed at
 `~/.local/node`; if `npm` isn't found, prefix commands with
 `export PATH="$HOME/.local/node/bin:$PATH" && …`.
 
-## Read this first: [ARCHITECTURE.md](ARCHITECTURE.md) — the system bible
+## Read this first: [app/ARCHITECTURE.md](app/ARCHITECTURE.md) — the system bible
 
 Before making non-trivial changes (schema, routes, pages, startup/backup logic),
-**read [ARCHITECTURE.md](ARCHITECTURE.md)**. It documents how everything is built, the
+**read [app/ARCHITECTURE.md](app/ARCHITECTURE.md)**. It documents how everything is built, the
 data model, the module dependency rules, the backup/restore startup sequence, and a list
 of gotchas that will cause bugs if you don't know them (WAL's 3 files, the circular-dep
 rule, "adding a column takes two edits," absolute document paths, enums living in two
@@ -53,11 +53,11 @@ importer. **Do not make the user fill anything in — read it from the posting.*
 2. Extract the fields into a JSON object using the rules below.
 3. Write the JSON to a temp file, then run:
    ```
-   npm run import -- /path/to/job.json
+   cd app && npm run import -- /path/to/job.json
    ```
    (or pipe it: `echo '<json>' | npm run import`).
    To update an existing job instead of creating one, use
-   `npm run import -- --update <jobId> /path/to/job.json`.
+   `cd app && npm run import -- --update <jobId> /path/to/job.json`.
 4. Report back the job it created/updated and the link it prints.
 
 ### JSON shape
@@ -109,10 +109,10 @@ links the person to jobs automatically — don't make the user do that by hand.
 2. Extract the fields below into JSON.
 3. Write it to a temp file and run:
    ```
-   npm run import-contact -- /path/to/contact.json
+   cd app && npm run import-contact -- /path/to/contact.json
    ```
    (or pipe it). To enrich a specific existing person, use
-   `npm run import-contact -- --update <contactId> /path/to/contact.json`.
+   `cd app && npm run import-contact -- --update <contactId> /path/to/contact.json`.
 4. Report who it created/enriched and which jobs it linked them to.
 
 ### JSON shape
@@ -150,7 +150,7 @@ If the user has added file(s) directly to `data/files/` (outside the app — e.g
 Finder) and wants them to show up in the CV Library, don't hand-write a document
 row. Run:
 ```
-npm run scan-documents
+cd app && npm run scan-documents
 ```
 It registers any file in `data/files/` that has no matching `documents` row yet
 (skips ones already known), guesses a doc type from the filename (`cv`, `cover_letter`,
@@ -158,12 +158,12 @@ or `other`), and derives a readable label. Safe to run repeatedly. There's also 
 in-app "Scan data/files folder" button on the CV Library page that does the same thing.
 
 ## Other commands
-- `npm run dev` — dev mode (Vite on 5173 + API on 3400).
-- `npm start` — build client and serve the whole app on http://localhost:3400.
-- `npm run seed` — load sample data (refuses if the DB already has data).
+- `cd app && npm run dev` — dev mode (Vite on 5173 + API on 3400).
+- `cd app && npm start` — build client and serve the whole app on http://localhost:3400.
+- `cd app && npm run seed` — load sample data (refuses if the DB already has data).
 
 ## Conventions
 - Backend is CommonJS (`require`). Client is ESM + React. Keep the hand-rolled CSS
-  in `client/src/styles.css`; no UI framework.
-- Reuse helpers in `server/helpers.js` (`resolveCompany`, `logActivity`, date
+  in `app/client/src/styles.css`; no UI framework.
+- Reuse helpers in `app/server/helpers.js` (`resolveCompany`, `logActivity`, date
   handling) rather than re-implementing them.

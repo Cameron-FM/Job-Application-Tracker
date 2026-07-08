@@ -423,6 +423,9 @@ input[type="checkbox"] { width: auto; }
 .inline-warn { color: #b45309; font-size: 12px; }
 .modal-body { margin-bottom: 16px; }
 .danger-text { color: #b91c1c; }
+.input-row { display: flex; gap: 8px; }
+.input-row input { flex: 1; }
+.input-row .btn { flex: none; white-space: nowrap; }
 
 /* ---------- cv library ---------- */
 

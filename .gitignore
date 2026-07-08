@@ -1,7 +1,7 @@
 node_modules/
-client/node_modules/
-client/dist/
+app/client/dist/
 data/
+logs/
 .DS_Store
 *.log
 .env

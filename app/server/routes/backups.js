@@ -17,6 +17,11 @@ router.patch('/settings', (req, res) => {
   if (typeof body.deviceName === 'string' && body.deviceName.trim()) patch.deviceName = body.deviceName.trim();
   if (typeof body.backupDir === 'string' && body.backupDir.trim()) patch.backupDir = body.backupDir.trim();
   if (typeof body.backupOnClose === 'boolean') patch.backupOnClose = body.backupOnClose;
+  // null clears the override (back to auto-detect); a non-empty string sets the provider.
+  if (body.storageOverride !== undefined) {
+    patch.storageOverride = (typeof body.storageOverride === 'string' && body.storageOverride.trim())
+      ? body.storageOverride.trim() : null;
+  }
   if (typeof body.autoRestoreOnEmpty === 'boolean') patch.autoRestoreOnEmpty = body.autoRestoreOnEmpty;
   if (body.retentionCount !== undefined) patch.retentionCount = Math.max(1, Number(body.retentionCount) || 50);
   if (body.autoBackup && typeof body.autoBackup === 'object') {
