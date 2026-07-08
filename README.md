@@ -14,10 +14,10 @@ into a cloud-synced folder so you never lose it and can move between machines.
 
 ## Quick start
 
-
-
-<p align="left">
-  <img src="app/launcher/JobTracker-icon.png" alt="Job Tracker icon" width="60"> Never touched a terminal before? This is all you need.
+<p>
+  <img src="app/launcher/JobTracker-icon.png" alt="Job Tracker icon" width="60" align="left">
+  <strong>Never touched a terminal before?</strong><br>
+  This is all you need.
 </p>
 
 ### macOS
