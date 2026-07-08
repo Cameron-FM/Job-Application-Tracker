@@ -26,12 +26,12 @@ into a cloud-synced folder so you never lose it and can move between machines.
    [nodejs.org](https://nodejs.org/) and run it like any other app installer.
 2. **Download this project** to your Mac (e.g. `git clone`, or download the ZIP from
    GitHub and unzip it) — anywhere you like, e.g. your Desktop.
-3. **Double-click `Job Tracker.app`** in the project folder. First launch installs
+3. **Double-click `Job Tracker (Mac).app`** in the project folder. First launch installs
    everything and takes a minute or two; it then opens your browser to the app
    automatically. Every time after that is instant.
 
-Want it one click away? Drag `Job Tracker.app` onto your **Dock**, or right-click it →
-**Add to Dock**, to launch it from there next time. **Don't move `Job Tracker.app` out
+Want it one click away? Drag `Job Tracker (Mac).app` onto your **Dock**, or right-click it →
+**Add to Dock**, to launch it from there next time. **Don't move `Job Tracker (Mac).app` out
 of the project folder** — it needs to stay next to `data/` and `app/` to work; make a
 shortcut/alias elsewhere instead if you want it somewhere else.
 
@@ -44,16 +44,16 @@ shortcut/alias elsewhere instead if you want it somewhere else.
    [nodejs.org](https://nodejs.org/) and run it like any other app installer.
 2. **Download this project** to your PC (e.g. `git clone`, or download the ZIP from
    GitHub and unzip it) — anywhere you like, e.g. your Desktop.
-3. **Double-click `launch.bat`** in the project folder. First launch installs
-   everything and takes a minute or two; it then opens your browser to the app
-   automatically. Every time after that is instant.
+3. **Double-click `Job Tracker (Windows).exe`** in the project folder. First launch
+   installs everything and takes a minute or two; it then opens your browser to the
+   app automatically. Every time after that is instant.
 
-Want it one click away? Right-click `launch.bat` → **Send to → Desktop (create
-shortcut)**, or pin that shortcut to your **Start menu/taskbar**. (If you'd rather have
-a proper `Job Tracker.exe` with an icon to pin instead, see the optional step in
-[Running it as a desktop app](#running-it-as-a-desktop-app).) **Don't move `launch.bat`
-out of the project folder** — it needs to stay next to `data/` and `app/` to work;
-pin/shortcut it instead if you want quicker access.
+Want it one click away? Right-click `Job Tracker (Windows).exe` → **Send to → Desktop
+(create shortcut)**, or pin that shortcut to your **Start menu/taskbar**. **Don't move
+`Job Tracker (Windows).exe` out of the project folder** — it needs to stay next to `data/`
+and `app/` to work; make a shortcut elsewhere instead if you want quicker access. (The
+`.exe` relies on a launcher script tucked inside `app/`, so there's nothing else to keep
+track of.)
 
 → More detail: [Running it as a desktop app](#running-it-as-a-desktop-app),
 [Requirements](#requirements).
@@ -77,10 +77,11 @@ pin/shortcut it instead if you want quicker access.
   your latest backup on first launch. Managed from the **Settings** tab.
 - **Hover tooltips** — hovering any truncated text (summaries, next steps, etc.) shows
   the full content in a small card at your cursor.
-- **Desktop launcher** — double-click `Job Tracker.app` (macOS) or `launch.bat` (Windows)
-  instead of using a terminal. It checks Node.js is installed, installs/updates
-  dependencies, starts the server, and opens your browser automatically — and shuts the
-  server back down once you close the app. See [Running it as a desktop app](#running-it-as-a-desktop-app).
+- **Desktop launcher** — double-click `Job Tracker (Mac).app` (macOS) or
+  `Job Tracker (Windows).exe` (Windows) instead of using a terminal. It checks Node.js is
+  installed, installs/updates dependencies, starts the server, and opens your browser
+  automatically — and shuts the server back down once you close the app. See
+  [Running it as a desktop app](#running-it-as-a-desktop-app).
 - **AI-assisted importing** — this repo includes a [CLAUDE.md](CLAUDE.md) contract that
   lets [Claude Code](https://claude.com/claude-code) turn a pasted job posting or
   LinkedIn profile into a fully populated job/contact record, deduping and linking
@@ -110,11 +111,15 @@ Then open **http://localhost:3400**.
 After cloning/downloading this repo, you can launch Job Tracker with a normal double-click,
 the same as any other app:
 
-- **macOS** — double-click **`Job Tracker.app`**.
-- **Windows** — double-click **`launch.bat`**. (Windows runs `.bat` files directly — no
-  extra wrapper is needed for it to work. If you'd like a proper `Job Tracker.exe` with a
-  custom icon instead, that's a one-time optional step: run `app\launcher\windows\make_exe.bat`
-  on Windows. It uses the C# compiler that ships with Windows — nothing to install.)
+- **macOS** — double-click **`Job Tracker (Mac).app`**.
+- **Windows** — double-click **`Job Tracker (Windows).exe`**. It's a thin wrapper around
+  `app\launcher\windows\launch.bat` (which does the real work, tucked away inside `app\` so
+  it's not cluttering the project root) — purely so you get a proper icon to pin instead of
+  a plain `.bat` file. That `launch.bat` is also directly double-clickable if you'd rather
+  use it straight from `app\launcher\windows\` (Windows runs `.bat` files directly, no
+  wrapper needed). If you ever need to rebuild the `.exe` yourself (e.g. after editing the
+  launcher), run `app\launcher\windows\make_exe.bat` on an actual Windows machine — it uses
+  the C# compiler that ships with Windows, nothing to install.
 
 Either way, the launcher automatically:
 1. Checks that Node.js is installed (and tells you where to get it if not).
@@ -196,12 +201,13 @@ To start fresh, stop the app and delete the `data/` folder.
 ## Project structure
 
 ```
-Job Tracker.app/   macOS launcher — double-click to run
-launch.bat         Windows launcher — double-click to run
-data/              Your data: SQLite database, CVs, backups, logs — gitignored
-app/               Everything else: the server, UI, scripts, launcher internals, docs
-README.md          This file
-CLAUDE.md          Contract for AI-assisted importing (must stay at the root)
+Job Tracker (Mac).app/        macOS launcher — double-click to run
+Job Tracker (Windows).exe     Windows launcher — double-click to run
+data/                         Your data: SQLite database, CVs, backups, logs — gitignored
+app/                          Everything else: the server, UI, scripts, launcher internals
+                               (incl. the Windows launcher's launch.bat), docs
+README.md                     This file
+CLAUDE.md                     Contract for AI-assisted importing (must stay at the root)
 ```
 
 For the full technical picture (data model, module structure, the backup/restore and

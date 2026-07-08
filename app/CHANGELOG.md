@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented here.
 
+## [1.7.0] — 2026-07-08
+
+Renamed desktop launchers, a real committed Windows `.exe`, and `launch.bat` tucked out of the root.
+
+### Added
+- **A real, committed `Job Tracker (Windows).exe`** — built via `make_exe.bat` on an actual
+  Windows machine (previously only written/unverified). It's a thin wrapper that launches
+  `app/launcher/windows/launch.bat`, which still holds all the real launcher logic.
+
+### Changed
+- **Renamed both desktop launchers for clarity**: `Job Tracker.app` → `Job Tracker (Mac).app`,
+  and the project root now also ships `Job Tracker (Windows).exe` as the primary Windows
+  double-click target. Updated throughout README, ARCHITECTURE.md, and the launcher build
+  scripts (`build-app.sh`/`make_exe.bat` now produce these names by default).
+- **Moved `launch.bat` off the project root into `app/launcher/windows/launch.bat`**, so the
+  root stays down to just the two double-click launchers, `data/`, and `app/` (it was the
+  last stray program file sitting at the root). `launch.bat` now resolves the project root
+  from three levels up instead of assuming it *is* the root. `JobTrackerLauncher.cs` (the
+  `.exe`'s source) was updated to launch it at its new nested path — **this means the
+  previously-built `Job Tracker (Windows).exe` is stale and must be rebuilt** (rerun
+  `make_exe.bat` on a real Windows machine) before it will find `launch.bat` again.
+  **The committed `.exe` as of this release is still that stale build** — it will be
+  replaced with a working rebuild in a follow-up commit.
+
 ## [1.6.0] — 2026-07-08
 
 Desktop launchers, automatic server lifecycle management, and a user-friendly layout.

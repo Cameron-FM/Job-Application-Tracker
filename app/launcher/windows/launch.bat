@@ -1,24 +1,31 @@
 @echo off
 REM Job Tracker — Windows launcher.
 REM
-REM Double-clicked directly (Windows runs .bat files on double-click with no
-REM wrapper needed) or via a Job Tracker.exe you've packaged yourself (see
-REM app\launcher\windows\make_exe.bat / README for the optional one-time step).
-REM This file sits at the project ROOT; all program files (incl. package.json)
-REM live in app\, and user data + logs live in data\. Checks Node.js/npm, reuses
-REM an already-running instance if one exists, otherwise installs deps and starts
-REM the server, waits for it to become healthy, then opens the browser.
-REM See app\ARCHITECTURE.md ("Desktop launchers & session lifecycle").
+REM Lives at app\launcher\windows\launch.bat — kept out of the project root so
+REM the root stays down to just the two double-click launchers, data\, and app\.
+REM Normally launched via "Job Tracker (Windows).exe" (project root), a thin
+REM wrapper built by make_exe.bat that just calls this file hidden — see
+REM README. You CAN also double-click this file directly (Windows runs .bat
+REM files on double-click with no wrapper needed); it self-locates the project
+REM root regardless. All program files (incl. package.json) live in the
+REM project's app\, and user data + logs live in its data\. Checks Node.js/npm,
+REM reuses an already-running instance if one exists, otherwise installs deps
+REM and starts the server, waits for it to become healthy, then opens the
+REM browser. See app\ARCHITECTURE.md ("Desktop launchers & session lifecycle").
 setlocal enabledelayedexpansion
 
-REM --- 1. Resolve directories from the script's own location ----------------
-REM npm commands must run inside app\ (that's where package.json lives).
-cd /d "%~dp0app"
+REM --- 1. Resolve directories from the script's own location -----------------
+REM This script lives at app\launcher\windows\, three levels below the project
+REM root — resolve ROOT from here so it works regardless of where the repo was
+REM cloned. npm commands must run inside app\ (that's where package.json lives).
+set "HERE=%~dp0"
+for %%I in ("%HERE%..\..\..") do set "ROOT=%%~fI"
+cd /d "%ROOT%\app"
 
 set "PORT=3400"
 set "HEALTH_URL=http://localhost:%PORT%/health"
 set "APP_URL=http://localhost:%PORT%"
-set "LOG_DIR=%~dp0data\logs"
+set "LOG_DIR=%ROOT%\data\logs"
 set "LOG_FILE=%LOG_DIR%\app.log"
 set "TMP_HEALTH=%TEMP%\job-tracker-health-%RANDOM%.json"
 

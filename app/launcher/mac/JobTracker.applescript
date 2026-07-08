@@ -1,4 +1,4 @@
--- Source for "Job Tracker.app" (macOS). Compiled to a proper AppleScript applet
+-- Source for "Job Tracker (Mac).app" (macOS). Compiled to a proper AppleScript applet
 -- with `osacompile` (see launcher/mac/build-app.sh) — an applet has a real,
 -- macOS-trusted executable, unlike a shell-script-as-CFBundleExecutable, which
 -- modern macOS (26+) refuses to launch via double-click.

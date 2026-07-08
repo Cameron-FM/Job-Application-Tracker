@@ -1,7 +1,7 @@
 #!/bin/bash
 # Job Tracker — macOS launcher.
 #
-# Double-clicked via Job Tracker.app (or run directly). Resolves its directories
+# Double-clicked via Job Tracker (Mac).app (or run directly). Resolves its directories
 # from its own location, checks Node.js/npm, reuses an already-running instance
 # if one exists, otherwise installs deps and starts the server, waits for it to
 # become healthy, then opens the browser. See ARCHITECTURE.md ("Desktop launchers

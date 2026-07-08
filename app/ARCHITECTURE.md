@@ -18,8 +18,9 @@
 A personal, locally-run job-application tracker (a mini-ATS/CRM). Single user, single machine
 at a time, no auth, no hosted backend. Node/Express + SQLite backend, React/Vite frontend.
 All state lives in `data/` (a SQLite DB + uploaded CV files). A built-in backup system snapshots
-everything into a (optionally cloud-synced) folder. Desktop launchers (`Job Tracker.app` /
-`launch.bat`) give it a double-click-to-run feel while it stays a normal local web app underneath.
+everything into a (optionally cloud-synced) folder. Desktop launchers (`Job Tracker (Mac).app` /
+`Job Tracker (Windows).exe`) give it a double-click-to-run feel while it stays a normal local web
+app underneath.
 
 Design ethos: **minimal dependencies, boring/robust tech, everything on disk, no cloud accounts.**
 Prefer reusing the existing helpers and patterns below over introducing new abstractions.
@@ -42,15 +43,15 @@ Prefer reusing the existing helpers and patterns below over introducing new abst
 
 ## 3. Repository layout
 
-**The root is deliberately minimal and user-facing** — the two double-click launchers, the user's
+**The root is deliberately minimal and user-facing** — the double-click launchers, the user's
 data, this `app/` folder holding every program file, plus `README.md` and `CLAUDE.md` (the latter
 *must* stay at root: Claude Code only auto-loads it from there). Don't add other files to the root;
 program files go in `app/`, runtime state in `data/`.
 
 ```
-Custom ATS Project/               ← project ROOT: only these user-facing items
-├── Job Tracker.app/        # macOS double-click launcher (AppleScript applet → app/launch.command; §9)
-├── launch.bat              # Windows double-click launcher (runs npm inside app\; §9)
+Job Tracker Project/               ← project ROOT: only these user-facing items
+├── Job Tracker (Mac).app/       # macOS double-click launcher (AppleScript applet → app/launch.command; §9)
+├── Job Tracker (Windows).exe    # Windows double-click launcher (wraps app/launcher/windows/launch.bat; §9)
 ├── README.md               # user-facing setup incl. cloud-save + launcher instructions
 ├── CLAUDE.md               # import contracts + ask-for-inputs policy — MUST stay at root
 ├── data/                   # GITIGNORED — ALL user state, created on first run
@@ -70,8 +71,11 @@ Custom ATS Project/               ← project ROOT: only these user-facing items
 │   │   ├── JobTracker.icns # the built macOS icon (source of truth for build-app.sh)
 │   │   ├── icon-src/       # make_icon.swift — SOURCE for the app icon (§9)
 │   │   ├── mac/            # JobTracker.applescript + build-app.sh — rebuild the .app
-│   │   └── windows/        # JobTrackerLauncher.cs + make_exe.bat + JobTracker.ico —
-│   │                       # optional one-time step to produce a real Job Tracker.exe
+│   │   └── windows/        # launch.bat (the REAL Windows launcher logic, tucked away
+│   │                       # here rather than the root) + JobTrackerLauncher.cs +
+│   │                       # make_exe.bat + JobTracker.ico — rebuilds
+│   │                       # Job Tracker (Windows).exe, which stays at the ROOT and
+│   │                       # finds launch.bat via this fixed relative path (see §9.1)
 │   ├── server/             # Express + SQLite backend (CommonJS)
 │   │   ├── index.js        # app entry: mounts routes, static serving, scheduler, shutdown hook
 │   │   ├── db-paths.js     # DATA_DIR/FILES_DIR/DB_PATH constants (NO other deps — §6);
@@ -104,7 +108,7 @@ Custom ATS Project/               ← project ROOT: only these user-facing items
 | `npm run import -- <file.json>` | Create/update a job from JSON (see CLAUDE.md). `--update <id>` to patch. |
 | `npm run import-contact -- <file.json>` | Create/enrich a contact from JSON; auto-links to company jobs. |
 | `npm run scan-documents` | Registers files dropped directly into `data/files/` into the CV Library. |
-| Double-click `Job Tracker.app` (macOS) / `launch.bat` (Windows) | The desktop launchers — see §9. Equivalent to `npm start`, plus health-check/reuse/lifecycle. |
+| Double-click `Job Tracker (Mac).app` (macOS) / `Job Tracker (Windows).exe` (Windows) | The desktop launchers — see §9. Equivalent to `npm start`, plus health-check/reuse/lifecycle. |
 
 **`ATS_DATA_DIR=/some/path`** env var repoints `DATA_DIR` (used for isolated testing or a second instance).
 **`JOB_TRACKER_SESSION=<id>`** marks the process as launcher-managed — see §9. Never set this for
@@ -261,15 +265,18 @@ project-local `data/backups` path.
 
 ## 9. Desktop launchers & session lifecycle
 
-Lets a user download the repo and double-click **`Job Tracker.app`** (macOS) or **`launch.bat`**
-(Windows) instead of using a terminal — while the app underneath stays an ordinary local web app
-(no Electron/Tauri, nothing new to learn if you're just editing routes or pages).
+Lets a user download the repo and double-click **`Job Tracker (Mac).app`** (macOS) or
+**`Job Tracker (Windows).exe`** (Windows) instead of using a terminal — while the app underneath
+stays an ordinary local web app (no Electron/Tauri, nothing new to learn if you're just editing
+routes or pages).
 
 ### 9.1 The launcher scripts
 
-**`app/launch.command`** (macOS — lives in app/, invoked by the .app) and **`launch.bat`** (Windows, project root) are the
-*only* places launcher logic lives — kept deliberately separate from application code. Both do the
-same sequence:
+**`app/launch.command`** (macOS — lives in app/, invoked by the .app) and
+**`app/launcher/windows/launch.bat`** (Windows — lives nested under app/, invoked by the .exe) are
+the *only* places launcher logic lives — kept deliberately separate from application code, and both
+deliberately out of the project root so the root stays down to just the two double-click launchers,
+data/, and app/. Both do the same sequence:
 
 1. Resolve the project directory from **their own location** (`cd "$(dirname "$0")"` /
    `cd /d "%~dp0"`) — works regardless of where the repo was cloned, never a hardcoded path.
@@ -291,7 +298,7 @@ same sequence:
 6. Poll `/health` once a second for up to 30s; on success, open the browser to
    `http://localhost:3400`. On failure/timeout, show an alert pointing at `data/logs/app.log`.
 
-**`Job Tracker.app` is a committed AppleScript applet, NOT a hand-made bundle (this matters — see
+**`Job Tracker (Mac).app` is a committed AppleScript applet, NOT a hand-made bundle (this matters — see
 below).** It's built by `launcher/mac/build-app.sh` from `launcher/mac/JobTracker.applescript` via
 `osacompile`, then ad-hoc code-signed. The applet does nothing but resolve the project directory (the
 folder containing the `.app`, via `path to me` → `dirname`) and fire off `launch.command` **detached**
@@ -309,15 +316,34 @@ failure (see gotchas §12.16–§12.18):
 The committed `.app` works on clone with no build step; run `build-app.sh` only if you change the
 applet source or the icon.
 
-**Windows has no equivalent bundle committed** — `launch.bat` alone is already fully
-double-clickable and functional (Windows runs `.bat` files directly, no wrapper required). A real
-`Job Tracker.exe` with a custom icon is an **optional, one-time, Windows-only** step: run
-`launcher/windows/make_exe.bat`, which compiles `launcher/windows/JobTrackerLauncher.cs` (a ~20-line
-program that just launches `launch.bat` hidden) using **`csc.exe`**, the C# compiler that ships with
-every Windows install's .NET Framework — no Visual Studio, no downloads. The icon
-(`launcher/windows/JobTracker.ico`) is baked in at compile time via `/win32icon:`.
-**This was never actually built or run on a real Windows machine** (this project is developed on
-macOS) — treat it as carefully-written-but-unverified until someone runs it on Windows.
+**`Job Tracker (Windows).exe` is also committed** — same relationship as the Mac applet: it's a
+tiny (~20-line) wrapper, `launcher/windows/JobTrackerLauncher.cs`, that finds its own folder (the
+project root, where the `.exe` itself lives) and launches **`app/launcher/windows/launch.bat`**
+below it, hidden, then exits immediately; all the real launcher logic still lives in `launch.bat`
+alone, kept separate from application code. The compiled wrapper hardcodes that relative path
+(`Path.Combine(exeDir, "app", "launcher", "windows", "launch.bat")` — see `JobTrackerLauncher.cs`),
+so **the `.exe` must stay at the project root** (it locates `launch.bat` relative to itself) and
+**`launch.bat` must stay at that exact nested path** — moving either breaks the pairing until
+`JobTrackerLauncher.cs` is updated and recompiled. `launch.bat` also remains fully double-clickable
+on its own from inside `app/launcher/windows/` (Windows runs `.bat` files directly, no wrapper
+required, and it self-locates the project root regardless of being called directly or via the
+`.exe`) — the `.exe` exists purely for a nicer icon/name to pin to the Start menu or taskbar, and to
+keep the root free of a bare `.bat` file.
+
+It's built by running `launcher/windows/make_exe.bat` **once, on an actual Windows machine**
+(compiles `JobTrackerLauncher.cs` with **`csc.exe`**, the C# compiler that ships with every Windows
+install's .NET Framework — no Visual Studio, no downloads — and bakes in the icon at
+`launcher/windows/JobTracker.ico` via `/win32icon:`). `make_exe.bat` is confirmed to compile
+successfully on a real Windows machine. Its actual double-click **launch behavior** (does it
+correctly bring up the server/browser end-to-end) is still unverified from this dev environment,
+since development happens on macOS — treat that part as carefully-written-but-unverified until
+confirmed on a real Windows run.
+
+**Rebuild required after moving `launch.bat` into `app/launcher/windows/`:** the previously-built
+`Job Tracker (Windows).exe` was compiled when `JobTrackerLauncher.cs` still looked for `launch.bat`
+right next to itself (project root) — that copy is now stale and won't find `launch.bat` at its new
+nested path. Whenever `JobTrackerLauncher.cs`'s target path or the icon changes, rerun `make_exe.bat`
+on Windows and replace the committed `.exe`; there's no way to rebuild it from macOS.
 
 **The app icon** (brand-purple rounded square + white briefcase, matching the sidebar "JT" mark /
 `--accent: #4f46e5`) is generated programmatically, headlessly, with zero image-editing tools or
@@ -333,7 +359,7 @@ the bundle as `applet.icns`); the `.ico` at `launcher/windows/`. Only the Swift 
 `GET /health` (bare — **not** `/api`-prefixed, by convention, and because the launcher scripts hard
 -code this exact path) in [server/index.js](server/index.js):
 ```json
-{ "status": "ok", "app": "job-tracker", "version": "1.6.0" }
+{ "status": "ok", "app": "job-tracker", "version": "1.7.0" }
 ```
 `version` is read live from the root `package.json` (`require('../package.json').version`) —
 **never hardcode it**; it'll silently go stale otherwise (this happened once already — see CHANGELOG).
@@ -533,9 +559,12 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
     modified/relocated copy used for testing needs its `PORT`/`HEALTH_URL` edited **and** that port
     explicitly exported so the child `npm start` process actually binds it (the scripts' local `PORT=…`
     assignment is not itself `export`ed to the child unless you add that, or export it in the invoking shell).
-15. **The Windows `.exe` path (`launcher/windows/`) has never been run on real Windows** — it was written
-    carefully but is unverified. `launch.bat` itself is the tested, trustworthy entry point; treat
-    `make_exe.bat`/`JobTrackerLauncher.cs` as "should work" rather than "verified."
+15. **The Windows `.exe` build step is confirmed working; its launch behavior isn't yet.**
+    `make_exe.bat`/`JobTrackerLauncher.cs` have been run on a real Windows machine and successfully
+    produced `Job Tracker (Windows).exe`. Whether double-clicking it correctly launches the server
+    end-to-end hasn't been confirmed from this (macOS) dev environment. `launch.bat` itself is the
+    long-tested, trustworthy entry point the `.exe` wraps — if the `.exe` ever misbehaves, double-click
+    `launch.bat` directly to isolate whether the problem is in the wrapper or the launcher logic.
 16. **A double-clicked `.app`/`.bat` does NOT load the user's shell profile** (`~/.zshrc`, `~/.bash_profile`),
     so `PATH` is the minimal GUI default — a Node that works fine in Terminal can be invisible to the
     launcher. This bit us: this machine's Node lives at `~/.local/node/bin` (per CLAUDE.md), which isn't
@@ -548,7 +577,7 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
 17. **On macOS 26+, a `.app` with a shell-script `CFBundleExecutable` won't launch via double-click** —
     LaunchServices silently declines (no error, no bounce), even though running the script directly from a
     terminal works. This is exactly why the first launcher attempt (a tiny shell script inside the bundle)
-    failed for the user despite "working" when I ran it directly. **`Job Tracker.app` is therefore an
+    failed for the user despite "working" when I ran it directly. **`Job Tracker (Mac).app` is therefore an
     `osacompile` AppleScript applet** (real Mach-O executable), ad-hoc signed. Rebuild it with
     `launcher/mac/build-app.sh`, never by hand-assembling a bundle around a script. Verify a launch fix by
     actually double-clicking / `open`-ing the bundle with **no server already running** (a running server
@@ -563,10 +592,13 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
     cache refresh, even though it's correct in the bundle.
 20. **The npm root is `app/`, not the project root.** Every npm command must run from inside `app/`
     (`cd app && npm …`); running npm at the project root fails with "no package.json". Likewise the root
-    layout is a deliberate user-facing contract (§3): `Job Tracker.app`, `launch.bat`, `data/`, `app/`,
-    `README.md`, `CLAUDE.md`. Don't add other root-level files — new program files go in `app/`, runtime
-    state in `data/`. `DATA_DIR` in db-paths.js is `../../data` (two up from app/server);
-    if you move code around, that anchor and the launchers' `APP_DIR`/`ROOT_DIR` are what must stay true.
+    layout is a deliberate user-facing contract (§3): `Job Tracker (Mac).app`, `Job Tracker (Windows).exe`,
+    `data/`, `app/`, `README.md`, `CLAUDE.md` — **not** `launch.bat`, which is deliberately tucked away at
+    `app/launcher/windows/launch.bat` rather than the root (see §9.1). Don't add other root-level files —
+    new program files go in `app/`, runtime state in `data/`. `DATA_DIR` in db-paths.js is `../../data`
+    (two up from app/server); if you move code around, that anchor and the launchers' path-resolution
+    (`APP_DIR`/`ROOT_DIR` in launch.command, the `HERE`/`ROOT` computation in launch.bat, and
+    `JobTrackerLauncher.cs`'s hardcoded relative path to launch.bat) are what must stay true.
 
 ---
 
@@ -616,7 +648,7 @@ data, never the real `data/` folder, and clean up stray background server proces
 ## 15. Privacy / git
 
 `data/` and `logs/` are gitignored — the DB, CV files, config, backups, and launcher logs stay local and
-are never committed. `Job Tracker.app` and `launcher/` (including the built `.icns`/`.ico`) **are**
-committed — they're application distribution assets, not user data. Only application code + these docs
-+ those launcher assets are tracked. The repo may be public; keep real personal data out of committed
-files (e.g. CLAUDE.md examples use fictional names).
+are never committed. `Job Tracker (Mac).app`, `Job Tracker (Windows).exe`, and `launcher/` (including
+the built `.icns`/`.ico`) **are** committed — they're application distribution assets, not user data.
+Only application code + these docs + those launcher assets are tracked. The repo may be public; keep
+real personal data out of committed files (e.g. CLAUDE.md examples use fictional names).

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rebuilds "Job Tracker.app" (the macOS double-click launcher) from source.
+# Rebuilds "Job Tracker (Mac).app" (the macOS double-click launcher) from source.
 # Run on macOS from anywhere:  bash app/launcher/mac/build-app.sh
 #
 # WHY an AppleScript applet (not a hand-made bundle with a shell-script
@@ -12,7 +12,7 @@ set -e
 
 HERE="$(cd "$(dirname "$0")" && pwd)"     # app/launcher/mac
 ROOT="$(cd "$HERE/../../.." && pwd)"      # project root (up past launcher/, app/)
-APP="$ROOT/Job Tracker.app"
+APP="$ROOT/Job Tracker (Mac).app"
 ICON="$HERE/../JobTracker.icns"           # app/launcher/JobTracker.icns
 
 rm -rf "$APP"

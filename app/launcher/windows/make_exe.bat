@@ -1,16 +1,19 @@
 @echo off
 REM One-time, Windows-only step to produce a real, double-clickable
-REM "Job Tracker.exe" with a custom icon, wrapping launch.bat.
-REM launch.bat alone already works fine on double-click (Windows runs .bat
-REM files directly) — this is purely a cosmetic upgrade for anyone who wants
-REM a proper .exe with an icon instead.
+REM "Job Tracker (Windows).exe" with a custom icon, wrapping
+REM app\launcher\windows\launch.bat (that .bat alone already works fine on
+REM double-click too — this is purely a cosmetic upgrade for anyone who wants
+REM a proper .exe with an icon instead).
 REM
 REM Uses the C# compiler that ships with every Windows install (part of the
 REM .NET Framework since Windows 7) — no downloads, no Visual Studio needed.
 REM
 REM Run this ONCE, on an actual Windows machine, from anywhere:
 REM   app\launcher\windows\make_exe.bat
-REM It writes "Job Tracker.exe" into the project root, next to launch.bat.
+REM It writes "Job Tracker (Windows).exe" into the project ROOT (not next to
+REM this script) — JobTrackerLauncher.cs finds launch.bat via the fixed
+REM relative path app\launcher\windows\launch.bat below wherever the .exe
+REM itself lives, so the .exe MUST stay at the project root.
 setlocal
 
 set "ROOT=%~dp0..\..\.."
@@ -35,7 +38,7 @@ if "%CSC%"=="" (
 )
 
 echo Using compiler: %CSC%
-"%CSC%" /nologo /target:winexe /out:"%ROOT%\Job Tracker.exe" /win32icon:"%~dp0JobTracker.ico" "%~dp0JobTrackerLauncher.cs"
+"%CSC%" /nologo /target:winexe /out:"%ROOT%\Job Tracker (Windows).exe" /win32icon:"%~dp0JobTracker.ico" "%~dp0JobTrackerLauncher.cs"
 
 if errorlevel 1 (
   echo.
@@ -44,5 +47,5 @@ if errorlevel 1 (
 )
 
 echo.
-echo Done. "Job Tracker.exe" was created in the project root.
+echo Done. "Job Tracker (Windows).exe" was created in the project root.
 echo Double-click it to run Job Tracker.
