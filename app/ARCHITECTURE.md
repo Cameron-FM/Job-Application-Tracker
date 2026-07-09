@@ -373,7 +373,7 @@ the bundle as `applet.icns`); the `.ico` at `launcher/windows/`. Only the Swift 
 `GET /health` (bare — **not** `/api`-prefixed, by convention, and because the launcher scripts hard
 -code this exact path) in [server/index.js](server/index.js):
 ```json
-{ "status": "ok", "app": "job-tracker", "version": "1.10.0" }
+{ "status": "ok", "app": "job-tracker", "version": "1.11.0" }
 ```
 `version` is read live from the root `package.json` (`require('../package.json').version`) —
 **never hardcode it**; it'll silently go stale otherwise (this happened once already — see CHANGELOG).
@@ -607,6 +607,24 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
   `useSubmit` helper: `fn` can return `false` to silently abort the submit (stay on the form, no error
   shown) instead of the normal "success → close" or "throw → show error" paths — needed because
   cancelling the reason prompt mid-submit is neither.
+- **Dashboard's "Apply" tile grid:** `Dashboard.jsx` fetches `GET /api/jobs?stage=Interested` directly
+  (no dedicated endpoint — the existing `jobs.js` `stage` filter already returns everything a tile
+  needs: `company_name`, `company_website`, `summary`, `contact_count`, `application_url`, `url`).
+  Each tile navigates to the job on click; the "Apply ↗" button is a separate `<a target="_blank">`
+  (not nested inside a `<Link>` — anchors can't nest) that calls `e.stopPropagation()` so clicking it
+  doesn't *also* trigger the card's own navigate-to-detail click handler. Prefers `application_url`,
+  falls back to `url`, hidden entirely if neither is set.
+- **`components/ScrollCapped.jsx`:** wraps a list (or a multi-column CSS grid) to cap it at N rows
+  (default 3) — shrinks to fit when there's less content, becomes an internally-scrollable region with
+  a small bouncing "more below" chevron when there's more (an inline SVG, not a Unicode glyph — text
+  characters like `⌄` have inconsistent font-metric padding that makes them visually off-center inside
+  a circle even with perfect flexbox centering). Row boundaries are **measured live off the DOM**
+  (grouping children by rendered top position) rather than assumed from a hardcoded pixel height, so it
+  stays correct for variable-height rows (wrapped text) and for a grid whose column count itself
+  changes responsively — a `ResizeObserver` on the container re-measures on any size change. Used by
+  all three Dashboard cards (Next steps, People to follow up with, Apply). The indicator hides once
+  scrolled to the bottom (`atBottom` tracked via `onScroll`), so it never claims "more below" when
+  there isn't.
 - **Enums/colours:** `constants.js` mirrors the server enums (STAGES, CONTACT_TYPES, CONVERSATION_STATUSES,
   ACTIVITY_TYPES, DOC_TYPES) + colour maps + `ACTIVITY_ICONS`. **If you change a server enum, change this too.**
 - **Dates/format:** `utils.js` — `todayStr`, `fmtDate` (`'7 Jul 2026'`), `isOverdue`, `isToday`.
@@ -706,6 +724,20 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
     also duplicates independently. **If you rename, add, or remove a stage — especially one that's
     terminal or interview-related — grep for the old stage name across `app/server/routes/*.js` and
     `app/client/src/stageEffects.js`; there is no single source of truth to update instead.**
+22. **CSS Grid's default `align-items: stretch` silently forces side-by-side cards to match height.**
+    `.two-col` (Dashboard's "Next steps" / "People to follow up with" row) didn't set `align-items`, so
+    both cards always rendered at the height of whichever had more content — invisible as long as both
+    happened to have similar item counts, but it defeats `ScrollCapped`'s whole point of shrinking a
+    card that genuinely has fewer rows. Fixed with `align-items: start`. If you add another grid-based
+    side-by-side layout that's supposed to size independently per-column, set `align-items: start`
+    explicitly — don't rely on stretch not mattering just because it hasn't been visibly wrong yet.
+23. **`overflow: hidden` on a card clips content that doesn't fit — silently, with no scrollbar.**
+    `.card-table` used `overflow: hidden` to clip the table's square corners to the card's rounded ones,
+    which also meant any column too wide for the viewport (e.g. the Jobs table's `Due` column) was
+    simply invisible with no way to reach it — not a resize/breakpoint bug, just permanently gone.
+    Fixed with `overflow-x: auto; overflow-y: hidden` (keeps the rounded-corner clip, adds a horizontal
+    scrollbar only when content actually overflows). If you add a new edge-to-edge scrollable region
+    inside a rounded card, use that split form, not plain `overflow: hidden`.
 
 ---
 

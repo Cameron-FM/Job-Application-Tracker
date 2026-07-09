@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented here.
 
+## [1.11.0] — 2026-07-09
+
+Dashboard's "Recent activity" replaced with an "Apply" tile board, capped/scrollable dashboard
+cards, and a table-overflow fix.
+
+### Added
+- **"Apply" dashboard card** — replaces "Recent activity" with a 4-wide tile grid of every job at
+  the "Interested" stage (i.e. not yet applied for): company logo, title, summary, contact count,
+  and an "Apply ↗" button that opens the application link (or the posting link, if no separate
+  application URL is set) in a new tab without also navigating to the job's detail page.
+- **Capped, scrollable dashboard cards** — "Next steps on jobs", "People to follow up with", and the
+  new "Apply" board now show a max of 3 rows each; a bouncing chevron indicates more content below,
+  and scrolling within the card reveals the rest. Cards with fewer than 3 rows shrink to fit instead
+  of reserving empty space. New shared `components/ScrollCapped.jsx`.
+
+### Fixed
+- **Jobs table's rightmost columns (e.g. "Due") could be silently clipped** with no way to reach
+  them, on narrower viewports — `.card-table` used `overflow: hidden` to clip the table to the
+  card's rounded corners, which also hid any overflow instead of making it scrollable. Now scrolls
+  horizontally when needed (affects all four data tables: Jobs, Companies, People, Settings' backup
+  history).
+- The two dashboard cards in `.two-col` were silently stretched to match each other's height (CSS
+  Grid's default `align-items: stretch`), which defeated the new shrink-to-fit behavior — fixed with
+  `align-items: start`.
+- The scroll-more indicator's chevron was visually off-center inside its circle (a Unicode glyph's
+  font-metric padding isn't symmetric) — replaced with an inline SVG, which centers exactly.
+
 ## [1.10.0] — 2026-07-09
 
 Settings reorganized into Preferences/Backups sub-pages with a proper tab bar and per-section save.
