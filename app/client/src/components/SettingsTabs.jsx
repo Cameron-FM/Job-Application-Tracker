@@ -9,6 +9,9 @@ export default function SettingsTabs() {
       <NavLink to="/settings/backups" className={({ isActive }) => `settings-tab${isActive ? ' active' : ''}`}>
         ☁️ Backups
       </NavLink>
+      <NavLink to="/settings/tags" className={({ isActive }) => `settings-tab${isActive ? ' active' : ''}`}>
+        🏷️ Tags
+      </NavLink>
     </nav>
   );
 }

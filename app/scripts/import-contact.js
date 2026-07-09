@@ -15,7 +15,7 @@
 //   node scripts/import-contact.js --update 7 path/to/contact.json
 const fs = require('fs');
 const { db } = require('../server/db');
-const { resolveCompany, logActivity, linkContactToCompanyJobs } = require('../server/helpers');
+const { resolveCompany, logActivity, linkContactToCompanyJobs, syncTags } = require('../server/helpers');
 
 const args = process.argv.slice(2);
 let updateId = null;
@@ -111,6 +111,16 @@ if (existing) {
   contactId = info.lastInsertRowid;
   logActivity({ contact_id: contactId, activity_type: 'note', title: 'Added from LinkedIn profile' });
   console.log(`Added contact #${contactId}: ${name}${data.company_name ? ` @ ${data.company_name}` : ''}`);
+}
+
+// Resolve tag NAMES against the current vocabulary; unknown names are silently skipped
+// (see import-job.js for why — same reasoning applies here).
+if (Array.isArray(data.tags)) {
+  const tagIds = data.tags
+    .map((n) => db.prepare('SELECT id FROM tags WHERE name = ? COLLATE NOCASE').get(String(n).trim()))
+    .filter(Boolean)
+    .map((t) => t.id);
+  syncTags('contact_tags', 'contact_id', contactId, tagIds);
 }
 
 // --- Link as a connection to every job at their company ---

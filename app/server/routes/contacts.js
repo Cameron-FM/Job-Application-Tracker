@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../db');
-const { normalizeDates, buildUpdate, logActivity, resolveCompany, linkContactToCompanyJobs } = require('../helpers');
+const { normalizeDates, buildUpdate, logActivity, resolveCompany, linkContactToCompanyJobs,
+  syncTags, getTagsFor, attachTags } = require('../helpers');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.get('/', (req, res) => {
   if (req.query.contact_type) { clauses.push('ct.contact_type = ?'); params.push(req.query.contact_type); }
   if (req.query.conversation_status) { clauses.push('ct.conversation_status = ?'); params.push(req.query.conversation_status); }
   if (req.query.company_id) { clauses.push('ct.company_id = ?'); params.push(req.query.company_id); }
+  if (req.query.tag_id) { clauses.push('ct.id IN (SELECT contact_id FROM contact_tags WHERE tag_id = ?)'); params.push(req.query.tag_id); }
   if (req.query.q) {
     clauses.push('(ct.name LIKE ? OR ct.role_title LIKE ? OR co.name LIKE ?)');
     params.push(`%${req.query.q}%`, `%${req.query.q}%`, `%${req.query.q}%`);
@@ -30,7 +32,7 @@ router.get('/', (req, res) => {
     ${where}
     ORDER BY ct.name COLLATE NOCASE
   `).all(...params);
-  res.json(rows);
+  res.json(attachTags(rows, 'contact_tags', 'contact_id'));
 });
 
 router.post('/', (req, res) => {
@@ -53,6 +55,7 @@ router.post('/', (req, res) => {
     body.conversation_status || 'not_contacted', body.last_contacted || null,
     body.next_followup_due || null, body.notes || '');
   const contactId = info.lastInsertRowid;
+  if (Array.isArray(body.tags)) syncTags('contact_tags', 'contact_id', contactId, body.tags);
 
   // Optionally attach this person as a connection to every job at their company.
   if (body.link_company_jobs && companyId) {
@@ -66,10 +69,12 @@ router.post('/', (req, res) => {
 });
 
 function getContact(id) {
-  return db.prepare(`
+  const contact = db.prepare(`
     SELECT ct.*, co.name AS company_name, co.website AS company_website FROM contacts ct
     LEFT JOIN companies co ON co.id = ct.company_id WHERE ct.id = ?
   `).get(id);
+  if (contact) contact.tags = getTagsFor('contact_tags', 'contact_id', contact.id);
+  return contact;
 }
 
 router.get('/:id', (req, res) => {
@@ -105,6 +110,7 @@ router.patch('/:id', (req, res) => {
     });
   }
   buildUpdate('contacts', contact.id, body, CONTACT_FIELDS);
+  if (Array.isArray(body.tags)) syncTags('contact_tags', 'contact_id', contact.id, body.tags);
   res.json(getContact(contact.id));
 });
 

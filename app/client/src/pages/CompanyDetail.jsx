@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useFetch } from '../hooks';
-import { StageBadge, StatusBadge, TypeBadge, DueBadge } from '../components/Badges';
+import { StageBadge, StatusBadge, TypeBadge, DueBadge, WatchlistBadge } from '../components/Badges';
+import TagsCard from '../components/TagsCard';
 import { CompanyFormModal, JobFormModal, ContactFormModal } from '../components/forms';
 import CompanyLogo from '../components/CompanyLogo';
+import { TERMINAL_STAGES } from '../constants';
 import { fmtDate } from '../utils';
 
 export default function CompanyDetail() {
@@ -16,7 +18,14 @@ export default function CompanyDetail() {
   if (error) return <div className="page"><div className="form-error">{error}</div></div>;
   if (!company) return <div className="page" />;
 
+  const activeJobCount = company.jobs.filter((j) => !TERMINAL_STAGES.includes(j.stage)).length;
+
   const closeAndReload = () => { setModal(null); reload(); };
+
+  const setTags = async (tagIds) => {
+    await api.patch(`/api/companies/${company.id}`, { tags: tagIds });
+    reload();
+  };
 
   const deleteCompany = async () => {
     if (!window.confirm(`Delete ${company.name}? This deletes its ${company.jobs.length} job(s) too.`)) return;
@@ -32,6 +41,7 @@ export default function CompanyDetail() {
           <h1 className="company-cell">
             <CompanyLogo name={company.name} website={company.website} size={32} />
             {company.name}
+            <WatchlistBadge activeJobCount={activeJobCount} />
           </h1>
           <div className="page-sub">
             {[company.industry, company.location].filter(Boolean).join(' · ')}
@@ -46,6 +56,8 @@ export default function CompanyDetail() {
           <button className="btn btn-danger" onClick={deleteCompany}>Delete</button>
         </div>
       </div>
+
+      <TagsCard tags={company.tags} onChange={setTags} />
 
       {(company.description || company.notes) && (
         <div className="card">

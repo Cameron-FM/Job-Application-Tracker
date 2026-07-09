@@ -66,7 +66,8 @@ export default function GlobalSearch() {
 
   function goTo(result) {
     if (!result || !result.to) return;
-    navigate(result.to);
+    if (result.external) window.open(result.to, '_blank', 'noopener');
+    else navigate(result.to);
     reset();
   }
 

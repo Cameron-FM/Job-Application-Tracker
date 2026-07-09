@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { STAGES, STAGE_COLORS } from '../constants';
-import { DueBadge, ReferralBadge } from './Badges';
+import { DueBadge, ReferralBadge, TagBadgeRow } from './Badges';
 import CompanyLogo from './CompanyLogo';
 
 export default function KanbanBoard({ jobs, onMove, hideInterested }) {
@@ -45,6 +45,7 @@ export default function KanbanBoard({ jobs, onMove, hideInterested }) {
                   {job.company_name}
                 </div>
                 {job.summary && <div className="kanban-card-summary">{job.summary}</div>}
+                <TagBadgeRow tags={job.tags} />
                 <div className="kanban-card-footer">
                   <DueBadge date={job.next_step_due} />
                   <ReferralBadge name={job.referred_by_name} hideIfOpen />

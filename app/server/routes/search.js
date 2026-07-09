@@ -27,25 +27,29 @@ router.get('/', (req, res) => {
     SELECT j.id, j.title, j.stage, j.updated_at, c.name AS company_name
     FROM jobs j JOIN companies c ON c.id = j.company_id
     WHERE j.title LIKE ? OR c.name LIKE ? OR j.location LIKE ? OR j.summary LIKE ? OR j.next_step LIKE ?
-  `).all(like, like, like, like, like);
+      OR j.id IN (SELECT job_id FROM job_tags jt JOIN tags t ON t.id = jt.tag_id WHERE t.name LIKE ?)
+  `).all(like, like, like, like, like, like);
 
   const companies = db.prepare(`
     SELECT id, name, industry, location, created_at
     FROM companies
     WHERE name LIKE ? OR industry LIKE ? OR location LIKE ? OR summary LIKE ?
-  `).all(like, like, like, like);
+      OR id IN (SELECT company_id FROM company_tags jt JOIN tags t ON t.id = jt.tag_id WHERE t.name LIKE ?)
+  `).all(like, like, like, like, like);
 
   const contacts = db.prepare(`
     SELECT ct.id, ct.name, ct.role_title, ct.created_at, co.name AS company_name
     FROM contacts ct LEFT JOIN companies co ON co.id = ct.company_id
     WHERE ct.name LIKE ? OR ct.role_title LIKE ? OR co.name LIKE ? OR ct.email LIKE ?
-  `).all(like, like, like, like);
+      OR ct.id IN (SELECT contact_id FROM contact_tags jt JOIN tags t ON t.id = jt.tag_id WHERE t.name LIKE ?)
+  `).all(like, like, like, like, like);
 
   const documents = db.prepare(`
     SELECT id, label, doc_type, uploaded_at
     FROM documents
     WHERE label LIKE ? OR filename LIKE ?
-  `).all(like, like);
+      OR id IN (SELECT document_id FROM document_tags jt JOIN tags t ON t.id = jt.tag_id WHERE t.name LIKE ?)
+  `).all(like, like, like);
 
   const activities = db.prepare(`
     SELECT a.id, a.title, a.activity_type, a.occurred_at, a.job_id, a.contact_id,

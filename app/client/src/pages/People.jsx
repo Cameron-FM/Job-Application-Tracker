@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFetch } from '../hooks';
 import { CONTACT_TYPES, CONVERSATION_STATUSES } from '../constants';
-import { TypeBadge, StatusBadge, DueBadge } from '../components/Badges';
+import { TypeBadge, StatusBadge, DueBadge, TagBadgeRow } from '../components/Badges';
 import { ContactFormModal } from '../components/forms';
 import CompanyLogo from '../components/CompanyLogo';
 import { fmtDate } from '../utils';
@@ -10,9 +10,11 @@ import { fmtDate } from '../utils';
 export default function People() {
   const { data: contacts, reload } = useFetch('/api/contacts');
   const { data: companies } = useFetch('/api/companies');
+  const { data: allTags } = useFetch('/api/tags');
   const [q, setQ] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
+  const [tagId, setTagId] = useState('');
   const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
 
@@ -22,11 +24,12 @@ export default function People() {
     return contacts
       .filter((c) => !type || c.contact_type === type)
       .filter((c) => !status || c.conversation_status === status)
+      .filter((c) => !tagId || (c.tags || []).some((t) => t.id === Number(tagId)))
       .filter((c) => !term
         || c.name.toLowerCase().includes(term)
         || (c.company_name || '').toLowerCase().includes(term)
         || (c.role_title || '').toLowerCase().includes(term));
-  }, [contacts, q, type, status]);
+  }, [contacts, q, type, status, tagId]);
 
   return (
     <div className="page">
@@ -44,6 +47,10 @@ export default function People() {
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
           {Object.entries(CONVERSATION_STATUSES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={tagId} onChange={(e) => setTagId(e.target.value)}>
+          <option value="">All tags</option>
+          {(allTags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </div>
 
@@ -64,7 +71,10 @@ export default function People() {
           <tbody>
             {filtered.map((c) => (
               <tr key={c.id} onClick={() => navigate(`/people/${c.id}`)}>
-                <td className="td-strong">{c.name}</td>
+                <td className="td-strong">
+                  {c.name}
+                  <TagBadgeRow tags={c.tags} />
+                </td>
                 <td className="td-muted">
                   {c.company_name ? (
                     <span className="company-cell">

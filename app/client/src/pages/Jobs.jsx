@@ -5,7 +5,7 @@ import { useFetch } from '../hooks';
 import { STAGES, TERMINAL_STAGES, REJECTED_WITHDRAWN_STAGE } from '../constants';
 import { celebrateStageChange } from '../stageEffects';
 import { askRejectionReason } from '../rejectionReasonPrompt';
-import { StageBadge, DueBadge, ReferralBadge } from '../components/Badges';
+import { StageBadge, DueBadge, ReferralBadge, TagBadgeRow } from '../components/Badges';
 import CompanyLogo from '../components/CompanyLogo';
 import KanbanBoard from '../components/KanbanBoard';
 import { JobFormModal } from '../components/forms';
@@ -23,9 +23,11 @@ const SORTS = {
 export default function Jobs() {
   const { data: jobs, reload } = useFetch('/api/jobs');
   const { data: companies } = useFetch('/api/companies');
+  const { data: allTags } = useFetch('/api/tags');
   const [q, setQ] = useState('');
   const [stage, setStage] = useState('');
   const [companyId, setCompanyId] = useState('');
+  const [tagId, setTagId] = useState('');
   const [referred, setReferred] = useState('');
   const [hideClosed, setHideClosed] = useState(false);
   const [view, setView] = useState(() => localStorage.getItem('jobs-view') || 'table');
@@ -46,12 +48,13 @@ export default function Jobs() {
     return jobs
       .filter((j) => !stage || j.stage === stage)
       .filter((j) => !companyId || String(j.company_id) === companyId)
+      .filter((j) => !tagId || (j.tags || []).some((t) => t.id === Number(tagId)))
       .filter((j) => !referred || (referred === '1' ? !!j.referred_by_contact_id : !j.referred_by_contact_id))
       .filter((j) => !hideInterested || j.stage !== 'Interested')
       .filter((j) => !hideClosed || !TERMINAL_STAGES.includes(j.stage))
       .filter((j) => !term || j.title.toLowerCase().includes(term) || j.company_name.toLowerCase().includes(term))
       .sort(SORTS[sort]);
-  }, [jobs, q, stage, companyId, referred, hideInterested, hideClosed, sort]);
+  }, [jobs, q, stage, companyId, tagId, referred, hideInterested, hideClosed, sort]);
 
   const moveJob = async (id, newStage) => {
     const oldStage = jobs?.find((j) => j.id === id)?.stage;
@@ -86,6 +89,10 @@ export default function Jobs() {
         <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
           <option value="">All companies</option>
           {(companies || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={tagId} onChange={(e) => setTagId(e.target.value)}>
+          <option value="">All tags</option>
+          {(allTags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <select value={referred} onChange={(e) => setReferred(e.target.value)}>
           <option value="">Referred + open</option>
@@ -136,6 +143,7 @@ export default function Jobs() {
                   <td>
                     <div>{j.title}</div>
                     {j.summary && <div className="td-subtle">{j.summary}</div>}
+                    <TagBadgeRow tags={j.tags} />
                   </td>
                   <td><StageBadge stage={j.stage} /></td>
                   <td><ReferralBadge name={j.referred_by_name} /></td>

@@ -347,6 +347,7 @@ input[type="checkbox"] { width: auto; }
   white-space: nowrap;
 }
 .badge-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.watchlist-badge { background: #f5f3ff; color: #7c3aed; margin-left: 8px; }
 
 .chip {
   display: inline-block;
@@ -360,6 +361,34 @@ input[type="checkbox"] { width: auto; }
 
 .stage-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .stage-select { width: auto; font-weight: 600; }
+
+.tag-badge-row { margin-top: 0; }
+
+.tag-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tag-pill:hover { border-color: #94a3b8; }
+.tag-pill.selected { border-width: 1px; }
+
+.tag-edit-row { display: flex; flex-direction: column; gap: 6px; max-width: 240px; }
+.tag-color-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.tag-color-swatch.selected { border-color: var(--text); }
 
 /* ---------- list rows (dashboard, company detail) ---------- */
 
@@ -608,6 +637,7 @@ input[type="checkbox"] { width: auto; }
 .doc-title:hover { color: var(--accent); }
 .doc-actions { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
 .doc-actions select { width: auto; padding: 4px 8px; font-size: 12px; }
+.doc-tags { margin-top: 10px; }
 .doc-jobs { border-left: 1px solid var(--border); padding-left: 20px; }
 .doc-job-row {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;

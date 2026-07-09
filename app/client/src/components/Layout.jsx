@@ -9,7 +9,7 @@ const NAV = [
   { to: '/jobs', label: 'Jobs', icon: '💼' },
   { to: '/companies', label: 'Companies', icon: '🏢' },
   { to: '/people', label: 'People', icon: '👥' },
-  { to: '/cvs', label: 'CV Library', icon: '📄' },
+  { to: '/cvs', label: 'Documents', icon: '📄' },
   { to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 

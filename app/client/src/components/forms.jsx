@@ -6,6 +6,8 @@ import { STAGES, CONTACT_TYPES, CONVERSATION_STATUSES, ACTIVITY_TYPES, DOC_TYPES
 import { todayStr } from '../utils';
 import { celebrateStageChange } from '../stageEffects';
 import { askRejectionReason } from '../rejectionReasonPrompt';
+import { useFetch } from '../hooks';
+import TagPicker from './TagPicker';
 
 export function Field({ label, full, children }) {
   return (
@@ -66,7 +68,8 @@ export function CompanyDatalist({ companies }) {
 // ---------- Job ----------
 
 export function JobFormModal({ job, companies, initialCompanyName, onClose, onSaved }) {
-  const [form, set] = useForm({
+  const { data: allTags } = useFetch('/api/tags');
+  const [form, set, setForm] = useForm({
     title: job?.title || '',
     company_name: job?.company_name || initialCompanyName || '',
     stage: job?.stage || 'Interested',
@@ -81,6 +84,7 @@ export function JobFormModal({ job, companies, initialCompanyName, onClose, onSa
     next_step_due: job?.next_step_due || '',
     description: job?.description || '',
     notes: job?.notes || '',
+    tags: (job?.tags || []).map((t) => t.id),
   });
   const { submit, saving, error } = useSubmit(async () => {
     let payload = form;
@@ -140,6 +144,9 @@ export function JobFormModal({ job, companies, initialCompanyName, onClose, onSa
         <Field label="Notes" full>
           <textarea rows={3} value={form.notes} onChange={set('notes')} />
         </Field>
+        <Field label="Tags" full>
+          <TagPicker allTags={allTags} selectedIds={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} />
+        </Field>
         <CompanyDatalist companies={companies} />
         <SubmitRow saving={saving} error={error} onCancel={onClose} label={job ? 'Save changes' : 'Add job'} />
       </form>
@@ -150,7 +157,8 @@ export function JobFormModal({ job, companies, initialCompanyName, onClose, onSa
 // ---------- Contact ----------
 
 export function ContactFormModal({ contact, companies, initialCompanyName, onClose, onSaved }) {
-  const [form, set] = useForm({
+  const { data: allTags } = useFetch('/api/tags');
+  const [form, set, setForm] = useForm({
     name: contact?.name || '',
     company_name: contact?.company_name || initialCompanyName || '',
     role_title: contact?.role_title || '',
@@ -162,6 +170,7 @@ export function ContactFormModal({ contact, companies, initialCompanyName, onClo
     last_contacted: contact?.last_contacted || '',
     next_followup_due: contact?.next_followup_due || '',
     notes: contact?.notes || '',
+    tags: (contact?.tags || []).map((t) => t.id),
   });
   // Default on for brand-new contacts: attach them to jobs at their company.
   const [linkJobs, setLinkJobs] = useState(!contact);
@@ -212,6 +221,9 @@ export function ContactFormModal({ contact, companies, initialCompanyName, onClo
         <Field label="Notes" full>
           <textarea rows={3} value={form.notes} onChange={set('notes')} />
         </Field>
+        <Field label="Tags" full>
+          <TagPicker allTags={allTags} selectedIds={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} />
+        </Field>
         {!contact && (
           <label className="check full">
             <input type="checkbox" checked={linkJobs} onChange={(e) => setLinkJobs(e.target.checked)} />
@@ -228,7 +240,8 @@ export function ContactFormModal({ contact, companies, initialCompanyName, onClo
 // ---------- Company ----------
 
 export function CompanyFormModal({ company, onClose, onSaved }) {
-  const [form, set] = useForm({
+  const { data: allTags } = useFetch('/api/tags');
+  const [form, set, setForm] = useForm({
     name: company?.name || '',
     website: company?.website || '',
     location: company?.location || '',
@@ -236,6 +249,7 @@ export function CompanyFormModal({ company, onClose, onSaved }) {
     summary: company?.summary || '',
     description: company?.description || '',
     notes: company?.notes || '',
+    tags: (company?.tags || []).map((t) => t.id),
   });
   const { submit, saving, error } = useSubmit(
     () => (company ? api.patch(`/api/companies/${company.id}`, form) : api.post('/api/companies', form)),
@@ -265,6 +279,9 @@ export function CompanyFormModal({ company, onClose, onSaved }) {
         </Field>
         <Field label="Notes" full>
           <textarea rows={3} value={form.notes} onChange={set('notes')} />
+        </Field>
+        <Field label="Tags" full>
+          <TagPicker allTags={allTags} selectedIds={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} />
         </Field>
         <SubmitRow saving={saving} error={error} onCancel={onClose} label={company ? 'Save changes' : 'Add company'} />
       </form>

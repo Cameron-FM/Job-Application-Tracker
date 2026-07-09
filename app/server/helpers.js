@@ -79,6 +79,41 @@ function linkContactToCompanyJobs(contactId, companyId, relationship = 'Connecti
   return linked;
 }
 
+// Replaces the full tag set on one entity (a job/company/contact) in one call — matches how
+// the client's tag picker submits (one form, one Save) rather than incremental link/unlink
+// calls per toggle. joinTable/entityCol e.g. ('job_tags', 'job_id').
+function syncTags(joinTable, entityCol, entityId, tagIds) {
+  db.prepare(`DELETE FROM ${joinTable} WHERE ${entityCol} = ?`).run(entityId);
+  const insert = db.prepare(`INSERT OR IGNORE INTO ${joinTable} (${entityCol}, tag_id) VALUES (?, ?)`);
+  for (const tagId of tagIds || []) insert.run(entityId, Number(tagId));
+}
+
+function getTagsFor(joinTable, entityCol, entityId) {
+  return db.prepare(`
+    SELECT t.id, t.name, t.color FROM ${joinTable} jt
+    JOIN tags t ON t.id = jt.tag_id
+    WHERE jt.${entityCol} = ? ORDER BY t.name COLLATE NOCASE
+  `).all(entityId);
+}
+
+// Attaches a `.tags` array to every row in `rows` (each must have an `id`), fetching all
+// entity-tag links in one query and grouping in JS rather than a per-row subquery or SQLite's
+// JSON1 functions (nothing else in this codebase uses those) — simplest thing that works at
+// this app's personal scale.
+function attachTags(rows, joinTable, entityCol) {
+  const links = db.prepare(`
+    SELECT jt.${entityCol} AS entity_id, t.id, t.name, t.color FROM ${joinTable} jt
+    JOIN tags t ON t.id = jt.tag_id
+  `).all();
+  const byEntity = new Map();
+  for (const link of links) {
+    if (!byEntity.has(link.entity_id)) byEntity.set(link.entity_id, []);
+    byEntity.get(link.entity_id).push({ id: link.id, name: link.name, color: link.color });
+  }
+  for (const row of rows) row.tags = byEntity.get(row.id) || [];
+  return rows;
+}
+
 function localToday() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -125,4 +160,5 @@ function scanForNewDocuments() {
 module.exports = {
   STAGES, TERMINAL_STAGES, normalizeDates, buildUpdate, logActivity,
   resolveCompany, linkContactToCompanyJobs, localToday, scanForNewDocuments,
+  syncTags, getTagsFor, attachTags,
 };

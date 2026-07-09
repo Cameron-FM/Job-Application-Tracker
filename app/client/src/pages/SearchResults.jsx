@@ -102,7 +102,7 @@ export default function SearchResults() {
                 <div
                   key={r.key}
                   className={`list-row search-result${!r.to ? ' search-result-disabled' : ''}`}
-                  onClick={() => r.to && navigate(r.to)}
+                  onClick={() => { if (!r.to) return; if (r.external) window.open(r.to, '_blank', 'noopener'); else navigate(r.to); }}
                 >
                   <span className="search-result-icon">{r.icon}</span>
                   <div className="list-main">

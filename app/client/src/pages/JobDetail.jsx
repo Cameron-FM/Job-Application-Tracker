@@ -6,6 +6,7 @@ import { STAGES, REJECTED_WITHDRAWN_STAGE } from '../constants';
 import { celebrateStageChange } from '../stageEffects';
 import { askRejectionReason } from '../rejectionReasonPrompt';
 import { StatusBadge, TypeBadge, DueBadge, ReferralBadge } from '../components/Badges';
+import TagsCard from '../components/TagsCard';
 import Timeline from '../components/Timeline';
 import { JobFormModal, LinkContactModal, AttachDocModal, ActivityFormModal, CompanyDatalist } from '../components/forms';
 import CompanyLogo from '../components/CompanyLogo';
@@ -51,6 +52,11 @@ export default function JobDetail() {
 
   const unlinkContact = async (c) => {
     await api.del(`/api/jobs/${job.id}/contacts/${c.id}`);
+    reload();
+  };
+
+  const setTags = async (tagIds) => {
+    await api.patch(`/api/jobs/${job.id}`, { tags: tagIds });
     reload();
   };
 
@@ -161,6 +167,8 @@ export default function JobDetail() {
         </div>
 
         <div className="detail-side">
+          <TagsCard tags={job.tags} onChange={setTags} />
+
           <div className="card">
             <div className="card-header">
               <h2>People</h2>

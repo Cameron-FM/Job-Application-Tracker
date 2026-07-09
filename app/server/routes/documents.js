@@ -3,7 +3,7 @@ const fs = require('fs');
 const express = require('express');
 const multer = require('multer');
 const { db, FILES_DIR } = require('../db');
-const { buildUpdate, scanForNewDocuments } = require('../helpers');
+const { buildUpdate, scanForNewDocuments, syncTags, attachTags } = require('../helpers');
 
 const router = express.Router();
 
@@ -17,7 +17,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
 
 router.get('/', (req, res) => {
-  const docs = db.prepare('SELECT * FROM documents ORDER BY uploaded_at DESC').all();
+  const clauses = [];
+  const params = [];
+  if (req.query.tag_id) { clauses.push('id IN (SELECT document_id FROM document_tags WHERE tag_id = ?)'); params.push(req.query.tag_id); }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const docs = db.prepare(`SELECT * FROM documents ${where} ORDER BY uploaded_at DESC`).all(...params);
   const links = db.prepare(`
     SELECT jd.document_id, j.id AS job_id, j.title, j.stage, c.name AS company_name
     FROM job_documents jd
@@ -27,7 +31,7 @@ router.get('/', (req, res) => {
   for (const doc of docs) {
     doc.jobs = links.filter((l) => l.document_id === doc.id);
   }
-  res.json(docs);
+  res.json(attachTags(docs, 'document_tags', 'document_id'));
 });
 
 router.post('/', upload.single('file'), (req, res) => {
@@ -61,7 +65,9 @@ router.patch('/:id', (req, res) => {
   const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
   buildUpdate('documents', doc.id, req.body, ['label', 'doc_type']);
-  res.json(db.prepare('SELECT * FROM documents WHERE id = ?').get(doc.id));
+  if (Array.isArray(req.body.tags)) syncTags('document_tags', 'document_id', doc.id, req.body.tags);
+  const [updated] = attachTags([db.prepare('SELECT * FROM documents WHERE id = ?').get(doc.id)], 'document_tags', 'document_id');
+  res.json(updated);
 });
 
 router.delete('/:id', (req, res) => {

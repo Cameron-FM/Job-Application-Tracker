@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useFetch } from '../hooks';
 import { CONVERSATION_STATUSES } from '../constants';
 import { StageBadge, TypeBadge, DueBadge, ReferralBadge } from '../components/Badges';
+import TagsCard from '../components/TagsCard';
 import Timeline from '../components/Timeline';
 import { ContactFormModal, LogInteractionModal } from '../components/forms';
 import CompanyLogo from '../components/CompanyLogo';
@@ -23,6 +24,11 @@ export default function PersonDetail() {
 
   const setStatus = async (conversation_status) => {
     await api.patch(`/api/contacts/${contact.id}`, { conversation_status });
+    reload();
+  };
+
+  const setTags = async (tagIds) => {
+    await api.patch(`/api/contacts/${contact.id}`, { tags: tagIds });
     reload();
   };
 
@@ -78,6 +84,8 @@ export default function PersonDetail() {
         </div>
 
         <div className="detail-side">
+          <TagsCard tags={contact.tags} onChange={setTags} />
+
           <div className="card">
             <h2>Details</h2>
             <dl className="detail-list detail-list-stack">

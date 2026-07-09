@@ -12,7 +12,7 @@
 // See CLAUDE.md for the JSON shape and the extraction rules Claude follows.
 const fs = require('fs');
 const { db } = require('../server/db');
-const { STAGES, resolveCompany, logActivity, localToday } = require('../server/helpers');
+const { STAGES, resolveCompany, logActivity, localToday, syncTags } = require('../server/helpers');
 
 const args = process.argv.slice(2);
 let updateId = null;
@@ -87,6 +87,19 @@ if (data.referred_by_contact_id) {
   }
 }
 
+// Resolve tag NAMES (not ids — Claude won't know ids) against the current vocabulary;
+// unknown names are silently skipped rather than auto-creating a new tag, since the
+// vocabulary is meant to be managed centrally via Settings → Tags, not sprawled by imports.
+// `null` (vs. an empty array) means "tags weren't mentioned at all," so an --update that
+// doesn't touch tags leaves the job's existing tags alone instead of wiping them.
+let tagIds = null;
+if (Array.isArray(data.tags)) {
+  tagIds = data.tags
+    .map((name) => db.prepare('SELECT id FROM tags WHERE name = ? COLLATE NOCASE').get(String(name).trim()))
+    .filter(Boolean)
+    .map((t) => t.id);
+}
+
 const fields = {
   company_id: companyId,
   title: data.title !== undefined ? String(data.title).trim() : undefined,
@@ -135,6 +148,7 @@ if (updateId) {
   const sets = provided.map((k) => `${k} = ?`).join(', ');
   db.prepare(`UPDATE jobs SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`)
     .run(...provided.map((k) => fields[k]), updateId);
+  if (tagIds !== null) syncTags('job_tags', 'job_id', updateId, tagIds);
   linkReferrer(updateId);
   logActivity({ job_id: updateId, activity_type: 'other', title: 'Updated from job posting' });
   console.log(`Updated job #${updateId}: ${fields.title || existing.title}`);
@@ -146,6 +160,7 @@ if (updateId) {
     `INSERT INTO jobs (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`
   ).run(...cols.map((k) => fields[k]));
   const id = info.lastInsertRowid;
+  if (tagIds !== null) syncTags('job_tags', 'job_id', id, tagIds);
   linkReferrer(id);
   logActivity({ job_id: id, activity_type: 'other', title: 'Imported from job posting', detail: `Added at stage "${stage}"` });
   console.log(`Imported job #${id}: ${fields.title} @ ${data.company_name}`);

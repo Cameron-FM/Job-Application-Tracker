@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../db');
-const { STAGES, TERMINAL_STAGES, normalizeDates, buildUpdate, logActivity, resolveCompany, localToday } = require('../helpers');
+const { STAGES, TERMINAL_STAGES, normalizeDates, buildUpdate, logActivity, resolveCompany, localToday,
+  syncTags, getTagsFor, attachTags } = require('../helpers');
 
 const router = express.Router();
 
@@ -32,6 +33,7 @@ router.get('/', (req, res) => {
   if (req.query.active === '1') clauses.push(`j.stage NOT IN ('Accepted','Rejected/Withdrawn')`);
   if (req.query.referred === '1') clauses.push('j.referred_by_contact_id IS NOT NULL');
   if (req.query.referred === '0') clauses.push('j.referred_by_contact_id IS NULL');
+  if (req.query.tag_id) { clauses.push('j.id IN (SELECT job_id FROM job_tags WHERE tag_id = ?)'); params.push(req.query.tag_id); }
   if (req.query.q) {
     clauses.push('(j.title LIKE ? OR c.name LIKE ?)');
     params.push(`%${req.query.q}%`, `%${req.query.q}%`);
@@ -46,7 +48,7 @@ router.get('/', (req, res) => {
     ${where}
     ORDER BY j.updated_at DESC
   `).all(...params);
-  res.json(rows);
+  res.json(attachTags(rows, 'job_tags', 'job_id'));
 });
 
 router.post('/', (req, res) => {
@@ -64,19 +66,22 @@ router.post('/', (req, res) => {
     body.salary_range || '', body.source || '', stage, appliedDate, body.next_step || '',
     body.next_step_due || null, body.summary || '', body.description || '', body.raw_posting || '',
     body.notes || '');
+  if (Array.isArray(body.tags)) syncTags('job_tags', 'job_id', info.lastInsertRowid, body.tags);
   const job = getJob(info.lastInsertRowid);
   logActivity({ job_id: job.id, activity_type: 'other', title: 'Job added', detail: `Added at stage "${stage}"` });
   res.status(201).json(job);
 });
 
 function getJob(id) {
-  return db.prepare(`
+  const job = db.prepare(`
     SELECT j.*, c.name AS company_name, c.website AS company_website, ref.name AS referred_by_name
     FROM jobs j
     JOIN companies c ON c.id = j.company_id
     LEFT JOIN contacts ref ON ref.id = j.referred_by_contact_id
     WHERE j.id = ?
   `).get(id);
+  if (job) job.tags = getTagsFor('job_tags', 'job_id', job.id);
+  return job;
 }
 
 router.get('/:id', (req, res) => {
@@ -140,6 +145,7 @@ router.patch('/:id', (req, res) => {
   }
   const changed = buildUpdate('jobs', job.id, body, JOB_FIELDS);
   if (changed) db.prepare(`UPDATE jobs SET updated_at = datetime('now','localtime') WHERE id = ?`).run(job.id);
+  if (Array.isArray(body.tags)) syncTags('job_tags', 'job_id', job.id, body.tags);
   res.json(getJob(job.id));
 });
 

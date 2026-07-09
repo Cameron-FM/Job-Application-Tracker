@@ -26,6 +26,7 @@ app.use('/api/documents', require('./routes/documents'));
 app.use('/api/activities', require('./routes/activities'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/search', require('./routes/search'));
+app.use('/api/tags', require('./routes/tags'));
 app.use('/api', require('./routes/backups')); // /api/settings + /api/backups*
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));

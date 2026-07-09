@@ -8,12 +8,14 @@ export const RECORD_TYPES = {
   activity: { label: 'Activity', plural: 'Activities', icon: '📌' },
 };
 
+// Where clicking a result should go. Documents have no per-record detail page — clicking one
+// opens the file itself (an /api URL, not a client route) rather than the Documents list page.
 function routeFor(r) {
   switch (r.type) {
     case 'job': return `/jobs/${r.id}`;
     case 'company': return `/companies/${r.id}`;
     case 'contact': return `/people/${r.id}`;
-    case 'document': return '/cvs';
+    case 'document': return `/api/documents/${r.id}/file`;
     case 'activity': return r.job_id ? `/jobs/${r.job_id}` : r.contact_id ? `/people/${r.contact_id}` : null;
     default: return null;
   }
@@ -45,6 +47,7 @@ export function annotateResult(r) {
     title: r.title,
     subtitle: subtitleFor(r),
     to: routeFor(r),
+    external: r.type === 'document', // open in a new tab instead of client-side navigating
     date: r.date,
     score: r.score,
   };

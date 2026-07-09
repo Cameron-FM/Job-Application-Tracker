@@ -10,6 +10,7 @@ import PersonDetail from './pages/PersonDetail';
 import CvLibrary from './pages/CvLibrary';
 import SettingsPreferences from './pages/SettingsPreferences';
 import SettingsBackups from './pages/SettingsBackups';
+import SettingsTags from './pages/SettingsTags';
 import SearchResults from './pages/SearchResults';
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/settings" element={<Navigate to="/settings/preferences" replace />} />
         <Route path="/settings/preferences" element={<SettingsPreferences />} />
         <Route path="/settings/backups" element={<SettingsBackups />} />
+        <Route path="/settings/tags" element={<SettingsTags />} />
         <Route path="/search" element={<SearchResults />} />
       </Routes>
     </Layout>

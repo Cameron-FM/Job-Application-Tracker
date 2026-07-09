@@ -110,7 +110,7 @@ Job Tracker Project/               ← project ROOT: only these user-facing item
 | `npm run seed` | Loads sample data. Refuses if the DB already has companies. |
 | `npm run import -- <file.json>` | Create/update a job from JSON (see CLAUDE.md). `--update <id>` to patch. |
 | `npm run import-contact -- <file.json>` | Create/enrich a contact from JSON; auto-links to company jobs. |
-| `npm run scan-documents` | Registers files dropped directly into `data/files/` into the CV Library. |
+| `npm run scan-documents` | Registers files dropped directly into `data/files/` into the Documents page. |
 | Double-click `Job Tracker (Mac).app` (macOS) / `Job Tracker (Windows).exe` (Windows) | The desktop launchers — see §9. Equivalent to `npm start`, plus health-check/reuse/lifecycle. |
 
 **`ATS_DATA_DIR=/some/path`** env var repoints `DATA_DIR` (used for isolated testing or a second instance).
@@ -157,6 +157,19 @@ Defined in [server/db.js](server/db.js) inside `initSchema()`. All timestamps de
 - **job_documents** (M:N) — `job_id, document_id`. One CV → many jobs.
 - **activities** — `id, job_id (nullable), contact_id (nullable), activity_type, title, detail,
   occurred_at, created_at`. Append-only timeline; see `logActivity`.
+- **tags** — `id, name (UNIQUE COLLATE NOCASE), color, created_at`. The one **DB-driven,
+  in-app-editable** vocabulary in this app — every other categorical field above (`stage`,
+  `contact_type`, `conversation_status`, `doc_type`, `activity_type`) is a hardcoded array in
+  helpers.js/constants.js, edited by changing source code. Tags are managed from Settings → Tags
+  instead (see §11), by explicit user choice. Seeded with 4 starter tags (Sales, Solution
+  Engineer, Forward Deployed Engineer, AI) on first run only (guarded on the table being empty,
+  so deleting one on purpose never brings it back).
+- **job_tags / company_tags / contact_tags / document_tags** (M:N, one join table per taggable
+  entity) — `{job_id|company_id|contact_id|document_id}, tag_id`, PK on the pair, both columns
+  `ON DELETE CASCADE`. A real FK per entity rather than one polymorphic `entity_type` column, so
+  deleting a job/company/contact/document/tag cleans up automatically — same pattern as
+  `job_contacts`/`job_documents`. Managed via `syncTags`/`getTagsFor`/`attachTags` in helpers.js
+  (see §11); `routes/tags.js` owns the vocabulary's own CRUD (`/api/tags`).
 
 **Referral model:** a job is "referred" iff `referred_by_contact_id` is set. That contact is also
 linked in `job_contacts` with relationship `"Referrer"`. Jobs without it are "open applications."
@@ -373,7 +386,7 @@ the bundle as `applet.icns`); the `.ico` at `launcher/windows/`. Only the Swift 
 `GET /health` (bare — **not** `/api`-prefixed, by convention, and because the launcher scripts hard
 -code this exact path) in [server/index.js](server/index.js):
 ```json
-{ "status": "ok", "app": "job-tracker", "version": "1.11.0" }
+{ "status": "ok", "app": "job-tracker", "version": "1.12.0" }
 ```
 `version` is read live from the root `package.json` (`require('../package.json').version`) —
 **never hardcode it**; it'll silently go stale otherwise (this happened once already — see CHANGELOG).
@@ -485,22 +498,35 @@ All under `/api` except `/health` (§9.2, bare by convention). JSON. Errors → 
 the central handler in index.js (better-sqlite3 is synchronous, so thrown errors land there; set
 `err.status` for non-500).
 
-- **jobs** — `GET /jobs` (filters: `stage, company_id, active=1, referred=0|1, q`), `POST /jobs`,
+- **jobs** — `GET /jobs` (filters: `stage, company_id, active=1, referred=0|1, tag_id, q`), `POST /jobs`,
   `GET/PATCH/DELETE /jobs/:id`, link/unlink `POST/DELETE /jobs/:id/contacts/:cid`,
-  `POST/DELETE /jobs/:id/documents/:did`. GET returns `company_name` + `referred_by_name`.
+  `POST/DELETE /jobs/:id/documents/:did`. GET returns `company_name` + `referred_by_name` + `tags`.
   `PATCH /jobs/:id` → `400` if `stage` is being set to `Rejected/Withdrawn` without a non-empty
-  `rejection_reason` in the same request body (§5).
-- **companies** — CRUD; `GET /companies/:id` embeds its jobs + contacts.
-- **contacts** — CRUD; create accepts `link_company_jobs` + company_* fields; `GET /contacts/:id`
-  embeds linked jobs (with `is_referrer`) + activities.
-- **documents** — `GET /documents` (each with its linked jobs), `POST /documents` (multipart, field
-  `file`), `POST /documents/scan`, `GET /documents/:id/file[?download=1]`, `PATCH/DELETE /documents/:id`.
+  `rejection_reason` in the same request body (§5). POST/PATCH accept a `tags` array of tag **ids**
+  (not names — that's the CLI importer's job, see §13) and sync it via `syncTags` (§5).
+- **companies** — CRUD (filters: `tag_id`); `GET /companies/:id` embeds its jobs + contacts +
+  `tags`. POST/PATCH accept `tags` (ids), synced the same way as jobs.
+- **contacts** — CRUD (filters: `tag_id`); create accepts `link_company_jobs` + company_* fields;
+  `GET /contacts/:id` embeds linked jobs (with `is_referrer`) + activities + `tags`. POST/PATCH
+  accept `tags` (ids), synced the same way.
+- **tags** — `GET /tags` → the vocabulary with per-tag `job_count`/`company_count`/`contact_count`
+  (used by Settings → Tags, §11). `POST /tags` (`{name, color}`, 409 on a case-insensitive duplicate
+  name), `PATCH /tags/:id` (rename/recolor), `DELETE /tags/:id` (cascades to job_tags/company_tags/
+  contact_tags automatically via FK — see §5).
+- **documents** — `GET /documents` (filters: `tag_id`; each with its linked jobs + `tags`),
+  `POST /documents` (multipart, field `file` — doesn't accept tags at upload time; tag it
+  afterward via PATCH), `POST /documents/scan`, `GET /documents/:id/file[?download=1]`,
+  `PATCH/DELETE /documents/:id` (PATCH accepts `tags`, ids, synced the same way as the other
+  three entities).
 - **activities** — `GET /activities?job_id=&contact_id=&limit=`, `POST`, `DELETE /:id`.
 - **dashboard** — `GET /dashboard` → counts (incl. `referred`), `job_next_steps`, `contact_followups`,
   `recent_activity`.
 - **search** — `GET /search?q=&limit=` → `{ results: [...], total }`, a single relevance-ranked, flat
   array across jobs/companies/contacts/documents/activities (plain `LIKE '%q%'` across the fields a user
-  would recognize a record by — title/name/company/location/summary/etc., see routes/search.js). Each
+  would recognize a record by — title/name/company/location/summary/etc., see routes/search.js). Jobs/
+  companies/contacts/documents additionally match on their tag names (a `LIKE` sub-select through the
+  relevant `*_tags JOIN tags` — activities intentionally not tag-searchable, they aren't taggable at all).
+  Each
   row is `{ type, id, title, score, date, ...type-specific fields }` — `type` is the discriminator the
   client uses to pick an icon/label/route (`searchUtils.js`, §11). Relevance is a 3-tier score computed
   in JS per row (primary-field starts-with > contains > secondary-field-only match), not a SQL full-text
@@ -515,7 +541,12 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
 `STAGES`, `TERMINAL_STAGES`, `normalizeDates` (`''`→`null` for date fields), `buildUpdate(table,id,body,allowed)`
 (whitelisted partial UPDATE), `logActivity({...})`, `resolveCompany({company_id|company_name, company_fields})`
 (case-insensitive match; **backfills blank company fields, never clobbers**; creates if new),
-`linkContactToCompanyJobs`, `localToday`, `scanForNewDocuments`.
+`linkContactToCompanyJobs`, `localToday`, `scanForNewDocuments`, `syncTags(joinTable, entityCol, entityId,
+tagIds)` (replace-the-whole-set: deletes then re-inserts — matches a form's one-Save-does-it-all submit,
+so `tagIds` should be the full desired set, not a delta), `getTagsFor(joinTable, entityCol, entityId)`
+(single record's tags, used by `GET /:id` handlers), `attachTags(rows, joinTable, entityCol)` (bulk-attaches
+a `.tags` array to every row of a list response in two queries + an in-JS group-by, avoiding SQLite's
+JSON1 functions — nothing else in this codebase uses them).
 
 ---
 
@@ -525,9 +556,9 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
   routes inside `<Layout>`. Add a page = add a `pages/X.jsx` + a `<Route>` in App.jsx + (usually) a
   nav item in `components/Layout.jsx`.
 - **Settings is a sub-tabbed section, not one page:** `/settings` is just a `<Navigate>` redirect to
-  `/settings/preferences`; the two real routes are `/settings/preferences` (`SettingsPreferences.jsx`)
-  and `/settings/backups` (`SettingsBackups.jsx`), switched via `components/SettingsTabs.jsx` (two
-  `NavLink`s). The sidebar's single "Settings" nav item still points at bare `/settings` and stays
+  `/settings/preferences`; the three real routes are `/settings/preferences` (`SettingsPreferences.jsx`),
+  `/settings/backups` (`SettingsBackups.jsx`), and `/settings/tags` (`SettingsTags.jsx`), switched via
+  `components/SettingsTabs.jsx` (three `NavLink`s). The sidebar's single "Settings" nav item still points at bare `/settings` and stays
   highlighted on either sub-page — Layout's `NavLink`s don't set `end`, so they match by path *prefix*,
   and both sub-routes start with `/settings`. **Every editable settings section needs its own dirty-
   detected Save button** (not always-enabled, not instant-apply): keep a `saved*` snapshot alongside the
@@ -548,9 +579,35 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
   built on `components/Modal.jsx` + the `Field`/`useForm`/`useSubmit`/`SubmitRow` primitives there.
   Parent pages control visibility via state (e.g. `modal === 'edit'`).
 - **Shared display:** `components/Badges.jsx` (`StageBadge`, `TypeBadge`, `StatusBadge`, `DueBadge`,
-  `ReferralBadge`) — colours come from `constants.js`. `KanbanBoard.jsx` (native HTML5 drag-and-drop,
-  no dep; hide-Interested widens columns via `--kanban-col-w`). `Timeline.jsx`, `CompanyLogo.jsx`,
-  `TextTooltip.jsx`.
+  `ReferralBadge`, `TagBadgeRow`) — colours come from `constants.js` for the hardcoded enums, and
+  per-record from the server for `TagBadgeRow` (each tag carries its own `color`). `KanbanBoard.jsx`
+  (native HTML5 drag-and-drop, no dep; hide-Interested widens columns via `--kanban-col-w`).
+  `Timeline.jsx`, `CompanyLogo.jsx`, `TextTooltip.jsx`.
+- **Tags (jobs/companies/contacts/documents):** the one record attribute that's DB-driven and
+  in-app-editable rather than a `constants.js` enum (§5) — forms and pages fetch the current
+  vocabulary from `GET /api/tags` instead of importing a hardcoded list. `components/TagPicker.jsx`
+  is a toggleable pill multi-select (`allTags`, `selectedIds`, `onChange`), used inside
+  `JobFormModal`, `ContactFormModal`, `CompanyFormModal` (each does its own `useFetch('/api/tags')`
+  and seeds `tags: (entity?.tags || []).map(t => t.id)` into its form state — `tags` rides along in
+  the same POST/PATCH body as everything else since the server special-cases it). `components/
+  Badges.jsx`'s `TagBadgeRow({ tags })` renders the read-only side (table rows, kanban cards). Each
+  detail page (`JobDetail.jsx`, `CompanyDetail.jsx`, `PersonDetail.jsx`) instead renders
+  `components/TagsCard.jsx` — a standalone "Tags" card wrapping `TagPicker` directly (its own
+  `useFetch('/api/tags')`, no modal) that auto-saves on every toggle via a page-local
+  `setTags(tagIds)` → `api.patch(...); reload();`, the same immediate-apply pattern as the stage/
+  conversation-status `<select>`s elsewhere on those pages — there's no separate Save button
+  because a pill toggle already **is** the save action. Documents have no per-record detail page
+  (§10 note) and no create-time form field for tags either (uploading is drag-and-drop/multi-file,
+  not a single form) — `CvLibrary.jsx` instead embeds `TagPicker` directly inline in each doc card,
+  same auto-save-on-toggle pattern as `TagsCard`, just without the card wrapper. List pages
+  (`Jobs.jsx`, `Companies.jsx`, `People.jsx`, `CvLibrary.jsx`) each add a tag `<select>` filter
+  alongside their existing stage/type filters, following the same client-side `useMemo` filter
+  pattern: `!tagId || (x.tags || []).some(t => t.id === Number(tagId))`. `pages/SettingsTags.jsx`
+  (Settings → Tags tab) is where the vocabulary itself is managed — add/rename/recolor/delete, with
+  a curated `TAG_COLORS` swatch palette (mirrors `CompanyLogo.jsx`'s `AVATAR_COLORS`) instead of a
+  raw color input, and a delete-confirmation modal that states exactly how many jobs/companies/
+  contacts/documents will lose the tag (cascade is automatic via the join tables' FKs — see §5 —
+  the modal text is just informing the user, not driving the delete logic).
 - **Global search:** `components/GlobalSearch.jsx`, rendered once in a `.topbar` at the top of
   `Layout.jsx`'s `<main>` (so it's centered above the page content on every page). Debounces the query
   250ms (`useDebouncedValue`), hits `GET /api/search?q=&limit=8` (§10) — the server already returns the
@@ -563,10 +620,13 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
   param), and a "← Back" button (`navigate(-1)`, so it returns wherever the user actually came from,
   unlike the fixed-destination `back-link`s on the other detail pages). Both GlobalSearch and
   SearchResults share `searchUtils.js`'s `annotateResult()`/`RECORD_TYPES` to turn a raw `/api/search`
-  row into `{ icon, typeLabel, title, subtitle, to }` — **if you add a new searchable record type, add
-  it there once** rather than duplicating the icon/label/route mapping in both places. Each result maps
-  to a route (`/jobs/:id`, `/companies/:id`, `/people/:id`, `/cvs` for documents — there's no
-  per-document detail route — or a job/contact's page for an activity).
+  row into `{ icon, typeLabel, title, subtitle, to, external }` — **if you add a new searchable record
+  type, add it there once** rather than duplicating the icon/label/route mapping in both places. Each
+  result maps to a route (`/jobs/:id`, `/companies/:id`, `/people/:id`, or a job/contact's page for an
+  activity) that both GlobalSearch and SearchResults `navigate()` to on click — **except documents**,
+  which have no per-record detail page: `to` is instead the raw file URL (`/api/documents/:id/file`)
+  and `external: true` tells both click handlers to `window.open(to, '_blank')` it rather than
+  client-side navigating (navigating would land on an unmatched `/api/...` path, not a page).
 - **Stage celebration:** `stageEffects.js` exports `celebrateStageChange(oldStage, newStage)` — a pure
   "does this transition deserve an effect" check that `window.dispatchEvent`s a `job-stage-celebration`
   `CustomEvent` with `{ level: 'interview' | 'accepted' }` if so, otherwise a no-op. Two rules: **`level:
@@ -738,6 +798,17 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
     Fixed with `overflow-x: auto; overflow-y: hidden` (keeps the rounded-corner clip, adds a horizontal
     scrollbar only when content actually overflows). If you add a new edge-to-edge scrollable region
     inside a rounded card, use that split form, not plain `overflow: hidden`.
+24. **Tags touch 4 near-identical places (jobs/companies/contacts/documents) and it's easy to update
+    3 and miss the fourth.** Because tags apply to four entity types via four parallel join tables (§5)
+    rather than one shared code path, any change to how tagging works — a new filter param, a change to
+    `syncTags`'s signature, a new place `TagBadgeRow` should render — has to be applied once per entity's
+    route file (`routes/jobs.js`/`companies.js`/`contacts.js`/`documents.js`) **and** once per entity's
+    form/list page/detail-or-inline-picker on the client (documents don't follow the exact same client
+    shape as the other three — no form-modal tag field since upload isn't a single-record form, no
+    `TagsCard` since there's no per-document detail page — `CvLibrary.jsx` embeds `TagPicker` inline
+    instead, see §11). There's no single "tags.js route + tags page" to edit; grep for `syncTags`/
+    `getTagsFor`/`attachTags`/`TagPicker`/`TagBadgeRow`/`TagsCard` to find all the call sites before considering a
+    tags change complete.
 
 ---
 
@@ -745,8 +816,11 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
 
 `import-job.js` / `import-contact.js` write **directly to the DB** (they don't go through the HTTP API), so
 they work whether or not the server is running. They reuse `resolveCompany`, `logActivity`,
-`linkContactToCompanyJobs`. `--update <id>` patches an existing row (only fields present in the JSON;
-title/company_name aren't required on update). `scan-documents.js` wraps `scanForNewDocuments`.
+`linkContactToCompanyJobs`, `syncTags`. `--update <id>` patches an existing row (only fields present in the JSON;
+title/company_name aren't required on update). A `tags` array in the JSON is tag **names** (Claude doesn't
+know ids) — each is resolved case-insensitively against the current vocabulary and unmatched names are
+silently dropped rather than auto-creating a tag, since the vocabulary is meant to be managed centrally via
+Settings → Tags (§11), not sprawled by imports. `scan-documents.js` wraps `scanForNewDocuments`.
 
 The **field shapes and extraction rules** for these live in [CLAUDE.md](CLAUDE.md) — that's the contract
 a session follows when the user pastes a posting/profile. When adding a new importable field, update

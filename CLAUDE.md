@@ -31,7 +31,8 @@ Ask about things like:
 - **Reason, if the job is already rejected or withdrawn** — if the user says to add a job (or update one) straight to the `Rejected/Withdrawn` stage, ask why (or note it if they already said, e.g. "didn't hear back," "went with another candidate," "pulled out — accepted elsewhere"). This maps to `rejection_reason` below; the in-app UI requires this reason when moving a job to this stage interactively, so don't leave it blank here either.
 - **Next step and deadline** — if the user mentions a plan ("I'll apply this week", "interview Thursday") but doesn't give an exact date, ask for it rather than guessing or omitting `next_step_due`.
 - **Salary**, if the posting hides it (e.g. "competitive") but the user might know from a recruiter call.
-- **Which CV** they want attached, if they have more than one in the CV Library and don't specify.
+- **Which CV** they want attached, if they have more than one in the Documents page and don't specify.
+- **A new tag category**, if a posting clearly warrants one that doesn't exist yet in the current tag vocabulary (check `GET http://localhost:3400/api/tags`) — ask whether to add it before using it, rather than silently inventing or skipping it.
 - Anything the user's phrasing implies exists but didn't actually include — e.g. "add this job, I already applied" without a date, or "add Jamie as a contact for this role" without saying how Jamie relates to it (recruiter? referrer? interviewer?).
 
 Do **not** ask about fields that are:
@@ -82,7 +83,8 @@ importer. **Do not make the user fill anything in — read it from the posting.*
   "stage": "Interested",
   "next_step": "Tailor CV and apply",
   "next_step_due": "2026-07-14",
-  "referred_by_contact_name": "Jamie Chen"
+  "referred_by_contact_name": "Jamie Chen",
+  "tags": ["Sales", "AI"]
 }
 ```
 
@@ -100,6 +102,7 @@ importer. **Do not make the user fill anything in — read it from the posting.*
   stated — see "Ask for missing inputs" above. Leave blank for every other stage.
 - **referred_by_contact_name** (or `referred_by_contact_id`): set this whenever the user says they were referred, put you in touch with someone there, or names someone who works there in the context of this application. **Ask if it's not clear whether this was a referral or an open/cold application** — see "Ask for missing inputs" above; don't leave it ambiguous. The name must match an existing contact (by name, preferred within the same company) — if the referrer isn't tracked yet, add them as a contact first (see the contact importer below), then set this field. The importer auto-links them to this specific job as "Referrer" and the app shows a "Referred by X" badge on the job everywhere; jobs without this set show as "Open application."
 - If the company already exists (case-insensitive name match), the job is attached to it; otherwise it's created automatically.
+- **tags**: an array of tag *names* (not ids), best-effort from the posting's title/content — e.g. a "Forward Deployed Engineer" posting at an AI company might get `["Forward Deployed Engineer", "AI"]`. **Only use tags that already exist** — check `GET http://localhost:3400/api/tags` if the app is running (or ask the user for the current list if it isn't); unrecognized names are silently dropped by the importer rather than creating a new tag, since the vocabulary is meant to be managed from Settings → Tags, not sprawled by imports. If a posting clearly warrants a category that doesn't exist yet, ask the user whether to add it first (see "Ask for missing inputs" above) rather than guessing or skipping silently. Omit entirely if nothing fits.
 
 ## Importing a contact from a LinkedIn profile  ← the other main thing
 
@@ -131,7 +134,8 @@ links the person to jobs automatically — don't make the user do that by hand.
   "phone": "",
   "conversation_status": "not_contacted",
   "notes": "Based in Manchester. We share 2 mutual connections.",
-  "relationship": "Connection"
+  "relationship": "Connection",
+  "tags": ["Sales"]
 }
 ```
 
@@ -147,10 +151,11 @@ links the person to jobs automatically — don't make the user do that by hand.
 - **company_name**: the person's current employer. Pull `company_*` details from the profile if visible.
 - **conversation_status**: one of `not_contacted`, `reached_out`, `in_conversation`, `awaiting_reply`, `follow_up_needed`, `dormant`. Default `not_contacted` unless the user says they've already spoken.
 - **relationship**: how they relate to jobs at that company (e.g. `"Connection"`, `"Referral"`, `"Ex-colleague"`).
+- **tags**: an array of tag *names* (not ids), best-effort from their role/specialty — e.g. a recruiter focused on AI roles might get `["AI"]`. Same rule as the job importer: **only use tags that already exist** (check `GET http://localhost:3400/api/tags`); unrecognized names are silently dropped rather than creating a new tag. Omit entirely if nothing fits.
 
 ## Registering CV files dropped straight into data/files/
 If the user has added file(s) directly to `data/files/` (outside the app — e.g. via
-Finder) and wants them to show up in the CV Library, don't hand-write a document
+Finder) and wants them to show up in the Documents page, don't hand-write a document
 row. Run:
 ```
 cd app && npm run scan-documents
@@ -158,7 +163,7 @@ cd app && npm run scan-documents
 It registers any file in `data/files/` that has no matching `documents` row yet
 (skips ones already known), guesses a doc type from the filename (`cv`, `cover_letter`,
 or `other`), and derives a readable label. Safe to run repeatedly. There's also an
-in-app "Scan data/files folder" button on the CV Library page that does the same thing.
+in-app "Scan data/files folder" button on the Documents page that does the same thing.
 
 ## Other commands
 - `cd app && npm run dev` — dev mode (Vite on 5173 + API on 3400).

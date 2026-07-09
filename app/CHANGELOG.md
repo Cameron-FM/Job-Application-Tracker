@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here.
 
+## [1.12.0] — 2026-07-09
+
+Standardized tags for jobs, companies, people and documents — a fixed, in-app-managed vocabulary,
+not free-form text, applied via multi-select and filterable/searchable everywhere.
+
+### Added
+- **Tags** — a small, curated set of labels (e.g. Sales, Solution Engineer, Forward Deployed
+  Engineer, AI) that can be multi-selected on any job, company, contact, or document. Unlike every
+  other categorical field in the app, the tag vocabulary itself is managed in-app rather than
+  hardcoded, via a new **Settings → Tags** tab: add, rename, recolor (from a curated swatch
+  palette), and delete (with a confirmation that states how many records will lose the tag).
+- A dedicated, auto-saving **Tags card** on each job/company/person detail page (toggle a pill,
+  it saves immediately — no separate edit modal needed), plus an inline tag picker on each CV
+  Library document card. Tag badges on table rows and kanban cards, and a tag filter dropdown on
+  the Jobs/Companies/People/CV Library list pages.
+- Global search now matches on tag names too, across jobs, companies, contacts, and documents.
+- The job and contact CLI importers (and CLAUDE.md's extraction rules) now accept a `tags` array —
+  matched against the existing vocabulary by name; unrecognized names are silently skipped rather
+  than inventing a new tag, since the vocabulary is meant to stay centrally managed.
+
 ## [1.11.0] — 2026-07-09
 
 Dashboard's "Recent activity" replaced with an "Apply" tile board, capped/scrollable dashboard

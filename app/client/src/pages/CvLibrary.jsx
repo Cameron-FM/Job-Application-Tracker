@@ -1,19 +1,27 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useFetch } from '../hooks';
 import { DOC_TYPES } from '../constants';
 import { StageBadge } from '../components/Badges';
+import TagPicker from '../components/TagPicker';
 import { fmtDate } from '../utils';
 
 export default function CvLibrary() {
   const { data: docs, reload } = useFetch('/api/documents');
+  const { data: allTags } = useFetch('/api/tags');
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState(null);
   const [error, setError] = useState(null);
+  const [tagId, setTagId] = useState('');
   const fileInput = useRef();
+
+  const filtered = useMemo(
+    () => (docs || []).filter((d) => !tagId || (d.tags || []).some((t) => t.id === Number(tagId))),
+    [docs, tagId]
+  );
 
   const scanFolder = async () => {
     setScanning(true);
@@ -61,6 +69,11 @@ export default function CvLibrary() {
     reload();
   };
 
+  const setTags = async (doc, tagIds) => {
+    await api.patch(`/api/documents/${doc.id}`, { tags: tagIds });
+    reload();
+  };
+
   const deleteDoc = async (doc) => {
     const inUse = doc.jobs.length ? ` It's attached to ${doc.jobs.length} job(s).` : '';
     if (!window.confirm(`Delete "${doc.label}" and its file?${inUse}`)) return;
@@ -71,7 +84,7 @@ export default function CvLibrary() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>CV Library</h1>
+        <h1>Documents</h1>
         <div className="header-actions">
           <button className="btn" onClick={scanFolder} disabled={scanning}>
             {scanning ? 'Scanning…' : '⟳ Scan data/files folder'}
@@ -92,6 +105,15 @@ export default function CvLibrary() {
       </p>
       {scanMessage && <div className="scan-message">{scanMessage}</div>}
 
+      {docs && docs.length > 0 && (
+        <div className="toolbar">
+          <select value={tagId} onChange={(e) => setTagId(e.target.value)}>
+            <option value="">All tags</option>
+            {(allTags || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+      )}
+
       <div
         className={`dropzone${dragging ? ' dragging' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -102,7 +124,7 @@ export default function CvLibrary() {
       </div>
       {error && <div className="form-error">{error}</div>}
 
-      {(docs || []).map((doc) => (
+      {filtered.map((doc) => (
         <div className="card doc-card" key={doc.id}>
           <div className="doc-main">
             <a className="doc-title" href={`/api/documents/${doc.id}/file`} target="_blank" rel="noreferrer">📄 {doc.label}</a>
@@ -114,6 +136,9 @@ export default function CvLibrary() {
               <a className="link" href={`/api/documents/${doc.id}/file?download=1`}>download</a>
               <button className="link" onClick={() => renameDoc(doc)}>rename</button>
               <button className="link-danger" onClick={() => deleteDoc(doc)}>delete</button>
+            </div>
+            <div className="doc-tags">
+              <TagPicker allTags={allTags} selectedIds={(doc.tags || []).map((t) => t.id)} onChange={(tagIds) => setTags(doc, tagIds)} />
             </div>
           </div>
           <div className="doc-jobs">
@@ -127,7 +152,8 @@ export default function CvLibrary() {
           </div>
         </div>
       ))}
-      {docs && docs.length === 0 && <div className="empty">Your CV library is empty — upload your first CV above.</div>}
+      {docs && docs.length === 0 && <div className="empty">No documents yet — upload your first CV above.</div>}
+      {docs && docs.length > 0 && filtered.length === 0 && <div className="empty">No documents match that tag.</div>}
     </div>
   );
 }

@@ -102,10 +102,44 @@ CREATE TABLE IF NOT EXISTS activities (
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
+-- Standardized, in-app-editable vocabulary shared across jobs/companies/contacts (unlike
+-- STAGES/CONTACT_TYPES/etc, which are hardcoded in helpers.js — see ARCHITECTURE.md §11).
+CREATE TABLE IF NOT EXISTS tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  color TEXT NOT NULL DEFAULT '#64748b',
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS job_tags (
+  job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (job_id, tag_id)
+);
+CREATE TABLE IF NOT EXISTS company_tags (
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (company_id, tag_id)
+);
+CREATE TABLE IF NOT EXISTS contact_tags (
+  contact_id INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (contact_id, tag_id)
+);
+CREATE TABLE IF NOT EXISTS document_tags (
+  document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (document_id, tag_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_id);
 CREATE INDEX IF NOT EXISTS idx_contacts_company ON contacts(company_id);
 CREATE INDEX IF NOT EXISTS idx_activities_job ON activities(job_id);
 CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_id);
+CREATE INDEX IF NOT EXISTS idx_job_tags_tag ON job_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_company_tags_tag ON company_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_contact_tags_tag ON contact_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_document_tags_tag ON document_tags(tag_id);
 `);
 
   // Idempotent migrations: add columns to databases created before these fields existed.
@@ -125,6 +159,20 @@ CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_id);
   // Data migration: 'Rejected' and 'Withdrawn' were merged into one stage, 'Rejected/Withdrawn'.
   // Idempotent (no-op once no rows carry the old values) so it's safe to run on every startup.
   db.exec(`UPDATE jobs SET stage = 'Rejected/Withdrawn' WHERE stage IN ('Rejected', 'Withdrawn')`);
+
+  // Seed a few starter tags once, only if the table is still empty — so deleting a starter
+  // tag on purpose later doesn't get it silently reinstated on the next startup.
+  const tagCount = db.prepare('SELECT COUNT(*) AS n FROM tags').get().n;
+  if (tagCount === 0) {
+    const insertTag = db.prepare('INSERT INTO tags (name, color) VALUES (?, ?)');
+    const starterTags = [
+      ['Sales', '#2563eb'],
+      ['Solution Engineer', '#7c3aed'],
+      ['Forward Deployed Engineer', '#d97706'],
+      ['AI', '#059669'],
+    ];
+    for (const [name, color] of starterTags) insertTag.run(name, color);
+  }
 }
 
 // Auto-restore on a fresh device: if this DB has no user data yet and a backup with
