@@ -9,6 +9,7 @@ import People from './pages/People';
 import PersonDetail from './pages/PersonDetail';
 import CvLibrary from './pages/CvLibrary';
 import Settings from './pages/Settings';
+import SearchResults from './pages/SearchResults';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/people/:id" element={<PersonDetail />} />
         <Route path="/cvs" element={<CvLibrary />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/search" element={<SearchResults />} />
       </Routes>
     </Layout>
   );

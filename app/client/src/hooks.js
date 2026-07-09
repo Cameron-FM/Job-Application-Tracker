@@ -10,3 +10,12 @@ export function useFetch(url) {
   useEffect(() => { reload(); }, [reload]);
   return { data, error, reload };
 }
+
+export function useDebouncedValue(value, delayMs) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
+}

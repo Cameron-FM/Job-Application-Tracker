@@ -66,6 +66,76 @@ p { margin: 0 0 8px; }
   font-size: 12px;
 }
 
+/* ---------- global search (top bar) ---------- */
+
+.topbar { display: flex; justify-content: center; padding: 22px 32px 0; }
+
+.global-search { position: relative; width: 100%; max-width: 640px; }
+.global-search input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+}
+.global-search input::placeholder { color: #94a3b8; }
+.global-search input:focus { outline: 2px solid #c7d2fe; border-color: var(--accent); }
+
+.global-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+  z-index: 200;
+}
+.list-row.search-result { cursor: pointer; gap: 10px; margin: 0; justify-content: flex-start; }
+.list-row.search-result > .list-side { margin-left: auto; }
+.search-result-active { background: #eef2ff; }
+.search-result-disabled { cursor: default; opacity: 0.6; }
+.search-result-icon { flex-shrink: 0; font-size: 15px; }
+.global-search-results .empty { padding: 10px 6px; }
+
+.search-type-tag {
+  flex-shrink: 0;
+  background: #f1f5f9;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: auto;
+}
+
+.search-view-all {
+  cursor: pointer;
+  text-align: center;
+  padding: 10px 12px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  border-radius: 8px;
+}
+
+/* ---------- search results page ---------- */
+
+.search-page-input { max-width: 100%; margin-bottom: 14px; }
+.search-filters { align-items: center; }
+.search-filters .spacer { flex: 1; }
+
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
 
 .nav-link {
@@ -98,7 +168,18 @@ p { margin: 0 0 8px; }
 .page-sub { color: var(--muted); margin-top: 4px; }
 .page-summary { margin-top: 8px; max-width: 640px; color: var(--text); }
 .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-.back-link { display: inline-block; margin-bottom: 10px; color: var(--muted); font-size: 13px; }
+.back-link {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.back-link:hover { text-decoration: underline; }
 
 /* ---------- cards & stats ---------- */
 

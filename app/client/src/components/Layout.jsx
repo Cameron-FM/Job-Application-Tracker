@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import TextTooltip from './TextTooltip';
+import GlobalSearch from './GlobalSearch';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '🏠', end: true },
@@ -33,7 +34,12 @@ export default function Layout({ children }) {
         </nav>
         <div className="sidebar-footer">Runs locally · backups in Settings</div>
       </aside>
-      <main className="content">{children}</main>
+      <main className="content">
+        <header className="topbar">
+          <GlobalSearch />
+        </header>
+        {children}
+      </main>
       <TextTooltip />
     </div>
   );

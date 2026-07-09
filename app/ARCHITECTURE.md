@@ -82,12 +82,13 @@ Job Tracker Project/               ← project ROOT: only these user-facing item
 │   │   │                   # DATA_DIR = ../../data (two up: app/server → root)
 │   │   ├── db.js  config.js  backup.js  session.js  helpers.js  seed.js
 │   │   └── routes/         # jobs, companies, contacts, documents, activities,
-│   │                       # dashboard, backups (/api/settings + /api/backups*), session
+│   │                       # dashboard, search, backups (/api/settings + /api/backups*), session
 │   ├── scripts/            # standalone CLIs (used by humans and by Claude via CLAUDE.md)
 │   │   └── import-job.js  import-contact.js  scan-documents.js
 │   └── client/             # React + Vite frontend (ESM)
 │       ├── vite.config.js  # dev server on 5173, proxies /api → 3400
 │       └── src/            # main.jsx App.jsx api.js hooks.js session.js constants.js utils.js
+│                           # searchUtils.js (shared by GlobalSearch + SearchResults, see §11)
 │                           # styles.css + components/ + pages/ (as before)
 └── (README.md and CLAUDE.md sit at the root, above)
 ```
@@ -359,7 +360,7 @@ the bundle as `applet.icns`); the `.ico` at `launcher/windows/`. Only the Swift 
 `GET /health` (bare — **not** `/api`-prefixed, by convention, and because the launcher scripts hard
 -code this exact path) in [server/index.js](server/index.js):
 ```json
-{ "status": "ok", "app": "job-tracker", "version": "1.7.0" }
+{ "status": "ok", "app": "job-tracker", "version": "1.8.0" }
 ```
 `version` is read live from the root `package.json` (`require('../package.json').version`) —
 **never hardcode it**; it'll silently go stale otherwise (this happened once already — see CHANGELOG).
@@ -482,6 +483,15 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
 - **activities** — `GET /activities?job_id=&contact_id=&limit=`, `POST`, `DELETE /:id`.
 - **dashboard** — `GET /dashboard` → counts (incl. `referred`), `job_next_steps`, `contact_followups`,
   `recent_activity`.
+- **search** — `GET /search?q=&limit=` → `{ results: [...], total }`, a single relevance-ranked, flat
+  array across jobs/companies/contacts/documents/activities (plain `LIKE '%q%'` across the fields a user
+  would recognize a record by — title/name/company/location/summary/etc., see routes/search.js). Each
+  row is `{ type, id, title, score, date, ...type-specific fields }` — `type` is the discriminator the
+  client uses to pick an icon/label/route (`searchUtils.js`, §11). Relevance is a 3-tier score computed
+  in JS per row (primary-field starts-with > contains > secondary-field-only match), not a SQL full-text
+  index — fine at this app's scale. `limit` defaults to 8 (dropdown); the full search page (§11) asks for
+  up to 200. `total` is the pre-limit match count, used for the dropdown's "View all N results" link.
+  Empty result for `q` under 2 chars.
 - **settings/backups** (routes/backups.js, mounted at `/api`) — `GET/PATCH /settings`,
   `GET /backups`, `POST /backups`, `POST /backups/restore-latest`, `DELETE /backups/:name`.
 - **session** (routes/session.js, mounted at `/api/session`) — `POST /start`, `POST /heartbeat`. See §9.3.
@@ -500,8 +510,9 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
   routes inside `<Layout>`. Add a page = add a `pages/X.jsx` + a `<Route>` in App.jsx + (usually) a
   nav item in `components/Layout.jsx`.
 - **Data fetching:** `api.js` exposes `api.get/post/patch/del/upload`; it throws `Error(server message)`
-  on non-2xx. `hooks.js` `useFetch(url)` → `{ data, error, reload }`. Pages fetch on mount and call
-  `reload()` after mutations. There is **no global state store** — each page owns its data.
+  on non-2xx. `hooks.js` `useFetch(url)` → `{ data, error, reload }`; `useDebouncedValue(value, ms)` for
+  input-driven fetches (used by search). Pages fetch on mount and call `reload()` after mutations. There
+  is **no global state store** — each page owns its data.
 - **Modals:** all create/edit forms live in `components/forms.jsx` (`JobFormModal`, `ContactFormModal`,
   `CompanyFormModal`, `ActivityFormModal`, `LinkContactModal`, `AttachDocModal`, `LogInteractionModal`),
   built on `components/Modal.jsx` + the `Field`/`useForm`/`useSubmit`/`SubmitRow` primitives there.
@@ -510,6 +521,22 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
   `ReferralBadge`) — colours come from `constants.js`. `KanbanBoard.jsx` (native HTML5 drag-and-drop,
   no dep; hide-Interested widens columns via `--kanban-col-w`). `Timeline.jsx`, `CompanyLogo.jsx`,
   `TextTooltip.jsx`.
+- **Global search:** `components/GlobalSearch.jsx`, rendered once in a `.topbar` at the top of
+  `Layout.jsx`'s `<main>` (so it's centered above the page content on every page). Debounces the query
+  250ms (`useDebouncedValue`), hits `GET /api/search?q=&limit=8` (§10) — the server already returns the
+  list ranked, GlobalSearch just renders it. Dropdown supports arrow-key nav (Enter to navigate),
+  Escape/outside-click to close, and `⌘K`/`Ctrl+K` focuses it from anywhere via a `window` keydown
+  listener. Each row shows an icon + a text type-tag (`.search-type-tag`) so the record type is never
+  icon-only. A trailing "View all N results →" row (also arrow-key-navigable, from `total` in the
+  response) links to `/search?q=` — `pages/SearchResults.jsx`, a full page with type-filter buttons,
+  Relevance/Newest/Name-A–Z sort (client-side re-sort of one `limit=200` fetch — no server-side sort
+  param), and a "← Back" button (`navigate(-1)`, so it returns wherever the user actually came from,
+  unlike the fixed-destination `back-link`s on the other detail pages). Both GlobalSearch and
+  SearchResults share `searchUtils.js`'s `annotateResult()`/`RECORD_TYPES` to turn a raw `/api/search`
+  row into `{ icon, typeLabel, title, subtitle, to }` — **if you add a new searchable record type, add
+  it there once** rather than duplicating the icon/label/route mapping in both places. Each result maps
+  to a route (`/jobs/:id`, `/companies/:id`, `/people/:id`, `/cvs` for documents — there's no
+  per-document detail route — or a job/contact's page for an activity).
 - **Enums/colours:** `constants.js` mirrors the server enums (STAGES, CONTACT_TYPES, CONVERSATION_STATUSES,
   ACTIVITY_TYPES, DOC_TYPES) + colour maps + `ACTIVITY_ICONS`. **If you change a server enum, change this too.**
 - **Dates/format:** `utils.js` — `todayStr`, `fmtDate` (`'7 Jul 2026'`), `isOverdue`, `isToday`.
@@ -642,6 +669,12 @@ data, never the real `data/` folder, and clean up stray background server proces
 - **Anything touching the launchers or session lifecycle:** re-read §9 in full first — the shutdown-path
   merge (§9.3) is the easiest thing to accidentally break. Test with the fast env-var overrides
   (gotcha §12.14) before declaring done, and **update §9**.
+- **A new searchable record type (global search):** add a `SELECT ... WHERE ... LIKE` block in
+  `routes/search.js` mapping the new table's rows into the common `{ type, id, title, date, score,
+  ...extra fields }` shape (reuse `scoreMatch()` for ranking) → add one entry to `RECORD_TYPES` in
+  `searchUtils.js` (label/plural/icon) and a case in that file's `subtitleFor()`/`routeFor()` → that's
+  it — `GlobalSearch.jsx` and `SearchResults.jsx` both consume `annotateResult()` and need no changes.
+  **Update §10/§11.**
 
 ---
 

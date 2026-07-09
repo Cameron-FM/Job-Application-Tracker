@@ -62,6 +62,9 @@ track of.)
 
 - **Dashboard** — active applications, interviews in progress, overdue follow-ups, and
   a merged "what's next" list across jobs and contacts.
+- **Global search** — a search bar at the top of every page finds jobs, companies, people,
+  CVs, and timeline activity all at once, ranked by relevance. `⌘K`/`Ctrl+K` jumps straight
+  to it from anywhere. "View all results" opens a full search page with filters and sorting.
 - **Jobs** — table and kanban views, with a toggle to hide the "Interested" stage
   (widens the remaining kanban columns, or just filters the table rows).
 - **Companies & People** — auto-created from jobs/contacts, with company summaries,

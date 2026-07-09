@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## [1.8.0] — 2026-07-09
+
+Global search across jobs, companies, people, documents, and activities.
+
+### Added
+- **Global search** — a long search bar centered above the page content on every page (not tucked in
+  the sidebar) that searches jobs, companies, contacts, documents, and activities at once, ranked by
+  relevance. `⌘K`/`Ctrl+K` focuses it from anywhere; arrow keys + Enter navigate results, Escape closes.
+  Each result shows its record type as both an icon and a text tag. The dropdown caps at 8 results with
+  a "View all N results →" link to a new full **Search results** page (`/search`) with type-filter
+  buttons, Relevance/Newest/Name sorting, and a "← Back" button that returns to wherever you came from.
+  New `GET /api/search?q=&limit=` endpoint (`routes/search.js`) — plain SQL `LIKE` matching across each
+  table's user-recognizable fields with a simple JS relevance score, no new dependency, no full-text
+  index.
+
 ## [1.7.0] — 2026-07-08
 
 Renamed desktop launchers, a real committed Windows `.exe`, and `launch.bat` tucked out of the root.
