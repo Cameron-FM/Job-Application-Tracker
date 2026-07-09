@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useFetch } from '../hooks';
 import Modal from '../components/Modal';
 import { fmtDate } from '../utils';
+import { isCelebrationEnabled, setCelebrationEnabled } from '../stageEffects';
 
 function fmtBytes(n) {
   if (!n) return '—';
@@ -31,6 +32,12 @@ export default function Settings() {
   const [notice, setNotice] = useState(null);   // { type, text }
   const [confirm, setConfirm] = useState(null);  // { title, body, danger, label, onConfirm }
   const [busy, setBusy] = useState(false);
+  const [celebrationsOn, setCelebrationsOn] = useState(isCelebrationEnabled);
+
+  const toggleCelebrations = (checked) => {
+    setCelebrationsOn(checked);
+    setCelebrationEnabled(checked);
+  };
 
   useEffect(() => {
     if (status && !form) {
@@ -205,6 +212,15 @@ export default function Settings() {
           </tbody>
         </table>
         {list.length === 0 && <div className="empty">No backups yet. Click “Back up now”, or wait for the automatic hourly backup.</div>}
+      </div>
+
+      {/* Preferences */}
+      <div className="card">
+        <div className="card-header"><h2>Preferences</h2></div>
+        <label className="check full">
+          <input type="checkbox" checked={celebrationsOn} onChange={(e) => toggleCelebrations(e.target.checked)} />
+          🎉 Celebrate stage changes (confetti when a job reaches an interview stage or gets accepted)
+        </label>
       </div>
 
       {/* Settings form */}

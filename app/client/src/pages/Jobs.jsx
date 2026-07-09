@@ -2,7 +2,9 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useFetch } from '../hooks';
-import { STAGES } from '../constants';
+import { STAGES, TERMINAL_STAGES, REJECTED_WITHDRAWN_STAGE } from '../constants';
+import { celebrateStageChange } from '../stageEffects';
+import { askRejectionReason } from '../rejectionReasonPrompt';
 import { StageBadge, DueBadge, ReferralBadge } from '../components/Badges';
 import CompanyLogo from '../components/CompanyLogo';
 import KanbanBoard from '../components/KanbanBoard';
@@ -46,13 +48,21 @@ export default function Jobs() {
       .filter((j) => !companyId || String(j.company_id) === companyId)
       .filter((j) => !referred || (referred === '1' ? !!j.referred_by_contact_id : !j.referred_by_contact_id))
       .filter((j) => !hideInterested || j.stage !== 'Interested')
-      .filter((j) => !hideClosed || !['Accepted', 'Rejected', 'Withdrawn'].includes(j.stage))
+      .filter((j) => !hideClosed || !TERMINAL_STAGES.includes(j.stage))
       .filter((j) => !term || j.title.toLowerCase().includes(term) || j.company_name.toLowerCase().includes(term))
       .sort(SORTS[sort]);
   }, [jobs, q, stage, companyId, referred, hideInterested, hideClosed, sort]);
 
   const moveJob = async (id, newStage) => {
-    await api.patch(`/api/jobs/${id}`, { stage: newStage });
+    const oldStage = jobs?.find((j) => j.id === id)?.stage;
+    const payload = { stage: newStage };
+    if (newStage === REJECTED_WITHDRAWN_STAGE && oldStage !== REJECTED_WITHDRAWN_STAGE) {
+      const reason = await askRejectionReason();
+      if (!reason) return; // cancelled — no reload happened, so the card stays in its old column
+      payload.rejection_reason = reason;
+    }
+    await api.patch(`/api/jobs/${id}`, payload);
+    celebrateStageChange(oldStage, newStage);
     reload();
   };
 

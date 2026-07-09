@@ -28,6 +28,7 @@ better than a half-filled record the user has to notice and fix later.
 Ask about things like:
 - **Referral status** — was this application through a referral, or applied openly? If referred, who? (They must already be a tracked contact — if not, ask whether to add them as a person first, then link the referral.) This maps to `referred_by_contact_name` below.
 - **Stage / whether they've already applied** — "Interested" vs "Applied" changes what `applied_date` should be; don't assume either way if it's not stated.
+- **Reason, if the job is already rejected or withdrawn** — if the user says to add a job (or update one) straight to the `Rejected/Withdrawn` stage, ask why (or note it if they already said, e.g. "didn't hear back," "went with another candidate," "pulled out — accepted elsewhere"). This maps to `rejection_reason` below; the in-app UI requires this reason when moving a job to this stage interactively, so don't leave it blank here either.
 - **Next step and deadline** — if the user mentions a plan ("I'll apply this week", "interview Thursday") but doesn't give an exact date, ask for it rather than guessing or omitting `next_step_due`.
 - **Salary**, if the posting hides it (e.g. "competitive") but the user might know from a recruiter call.
 - **Which CV** they want attached, if they have more than one in the CV Library and don't specify.
@@ -93,8 +94,10 @@ importer. **Do not make the user fill anything in — read it from the posting.*
 - **raw_posting**: the original text, unedited, so nothing is lost.
 - **url** = where the posting lives. **application_url** = where you actually apply, if different (often the "Apply" button link). Leave blank if unknown.
 - **salary_range**: keep the posting's own wording (e.g. "£85–95k", "$120k–140k + equity").
-- **stage**: default `"Interested"`. Only use `"Applied"` if the user says they've already applied. Valid stages: Interested, Applied, Screening, Interviewing, Offer, Accepted, Rejected, Withdrawn.
+- **stage**: default `"Interested"`. Only use `"Applied"` if the user says they've already applied. Valid stages: Interested, Applied, Screening, Interviewing, Final Interview, Offer, Accepted, Rejected/Withdrawn.
 - **next_step / next_step_due**: set only if the user states a plan/deadline. Dates are `YYYY-MM-DD`.
+- **rejection_reason**: only relevant when `stage` is `"Rejected/Withdrawn"`. Ask for it if not already
+  stated — see "Ask for missing inputs" above. Leave blank for every other stage.
 - **referred_by_contact_name** (or `referred_by_contact_id`): set this whenever the user says they were referred, put you in touch with someone there, or names someone who works there in the context of this application. **Ask if it's not clear whether this was a referral or an open/cold application** — see "Ask for missing inputs" above; don't leave it ambiguous. The name must match an existing contact (by name, preferred within the same company) — if the referrer isn't tracked yet, add them as a contact first (see the contact importer below), then set this field. The importer auto-links them to this specific job as "Referrer" and the app shows a "Referred by X" badge on the job everywhere; jobs without this set show as "Open application."
 - If the company already exists (case-insensitive name match), the job is attached to it; otherwise it's created automatically.
 

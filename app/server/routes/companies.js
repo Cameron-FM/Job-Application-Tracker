@@ -9,7 +9,7 @@ router.get('/', (req, res) => {
     SELECT c.*,
       (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id) AS job_count,
       (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id
-         AND j.stage NOT IN ('Accepted','Rejected','Withdrawn')) AS active_job_count,
+         AND j.stage NOT IN ('Accepted','Rejected/Withdrawn')) AS active_job_count,
       (SELECT COUNT(*) FROM contacts ct WHERE ct.company_id = c.id) AS contact_count
     FROM companies c
     ORDER BY c.name COLLATE NOCASE

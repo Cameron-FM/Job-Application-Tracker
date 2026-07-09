@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom';
 import TextTooltip from './TextTooltip';
 import GlobalSearch from './GlobalSearch';
+import StageCelebration from './StageCelebration';
+import RejectionReasonModal from './RejectionReasonModal';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '🏠', end: true },
@@ -41,6 +43,8 @@ export default function Layout({ children }) {
         {children}
       </main>
       <TextTooltip />
+      <StageCelebration />
+      <RejectionReasonModal />
     </div>
   );
 }

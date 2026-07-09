@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented here.
 
+## [1.9.0] — 2026-07-09
+
+Stage list rework (Final Interview, merged Rejected/Withdrawn), stage-change celebrations with a
+Settings toggle, and a required reason when marking a job Rejected/Withdrawn.
+
+### Changed
+- **Job stages: added "Final Interview", merged "Rejected" and "Withdrawn" into one "Rejected/Withdrawn"
+  stage.** Full stage list is now Interested → Applied → Screening → Interviewing → Final Interview →
+  Offer → Accepted, plus the terminal Rejected/Withdrawn. Existing jobs with the old `Rejected` or
+  `Withdrawn` stage are migrated to `Rejected/Withdrawn` automatically (idempotent, runs on every
+  startup — see db.js). Every place that used to hardcode the old 3-stage terminal list or the
+  2-stage interview list (jobs/companies/dashboard routes, the stage-celebration trigger) was updated
+  to match — see ARCHITECTURE.md gotcha §12.21 for why those aren't single-sourced.
+
+### Added
+- **Stage-change celebration** — moving a job from a pre-interview stage (Interested/Applied) into any
+  interview stage (Screening, Interviewing, or Final Interview), or into **Accepted** from any stage,
+  triggers a brief confetti burst + toast, hand-rolled in CSS (no new dependency). Moving *between*
+  interview stages (e.g. Screening → Interviewing) does not re-trigger it. Works from every place a
+  job's stage can change — the job detail page's stage dropdown, the kanban board (drag-and-drop), and
+  the edit-job modal (used from every page that opens it) — via a shared `celebrateStageChange()`
+  trigger (`stageEffects.js`) and a single always-mounted listener component (`StageCelebration.jsx`,
+  alongside the global search bar and tooltip).
+- **Celebrations toggle** — a "🎉 Celebrate stage changes" checkbox on the Settings page's new
+  Preferences card turns the confetti off (on by default). Device-local (`localStorage`), separate
+  from the backup config `/api/settings` owns, since it's a pure display preference.
+- **Rejection/withdrawal reason required** — moving a job to the **Rejected/Withdrawn** stage, from any
+  of the three places a stage can change (§ above), now pops up a small modal requiring a short reason
+  (capped at 200 characters) before the change saves; cancelling the modal leaves the job's stage
+  untouched. The reason is shown on the job detail page and recorded in its timeline. Enforced
+  server-side too (`PATCH /jobs/:id` 400s without one), so the requirement holds regardless of caller.
+
 ## [1.8.0] — 2026-07-09
 
 Global search across jobs, companies, people, documents, and activities.

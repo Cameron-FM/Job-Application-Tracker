@@ -1,15 +1,16 @@
-export const STAGES = ['Interested', 'Applied', 'Screening', 'Interviewing', 'Offer', 'Accepted', 'Rejected', 'Withdrawn'];
-export const TERMINAL_STAGES = ['Accepted', 'Rejected', 'Withdrawn'];
+export const STAGES = ['Interested', 'Applied', 'Screening', 'Interviewing', 'Final Interview', 'Offer', 'Accepted', 'Rejected/Withdrawn'];
+export const TERMINAL_STAGES = ['Accepted', 'Rejected/Withdrawn'];
+export const REJECTED_WITHDRAWN_STAGE = 'Rejected/Withdrawn';
 
 export const STAGE_COLORS = {
   Interested: '#64748b',
   Applied: '#2563eb',
   Screening: '#d97706',
   Interviewing: '#7c3aed',
+  'Final Interview': '#9333ea',
   Offer: '#059669',
   Accepted: '#16a34a',
-  Rejected: '#dc2626',
-  Withdrawn: '#94a3b8',
+  'Rejected/Withdrawn': '#dc2626',
 };
 
 export const CONTACT_TYPES = {

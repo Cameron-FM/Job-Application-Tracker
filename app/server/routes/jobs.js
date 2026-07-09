@@ -6,7 +6,11 @@ const router = express.Router();
 
 const JOB_FIELDS = ['title', 'company_id', 'url', 'application_url', 'location', 'salary_range', 'source', 'stage',
   'applied_date', 'next_step', 'next_step_due', 'summary', 'description', 'raw_posting', 'notes',
-  'referred_by_contact_id'];
+  'referred_by_contact_id', 'rejection_reason'];
+
+// Keep in sync with the client's textarea maxLength (RejectionReasonModal.jsx) — this is the
+// server-side backstop, so it truncates rather than erroring on an over-long value.
+const REJECTION_REASON_MAX = 200;
 
 // Optional company_* fields on a job payload let us flesh out the company when it's
 // created (or backfill blanks on an existing one) as part of adding the job.
@@ -25,7 +29,7 @@ router.get('/', (req, res) => {
   const params = [];
   if (req.query.stage) { clauses.push('j.stage = ?'); params.push(req.query.stage); }
   if (req.query.company_id) { clauses.push('j.company_id = ?'); params.push(req.query.company_id); }
-  if (req.query.active === '1') clauses.push(`j.stage NOT IN ('Accepted','Rejected','Withdrawn')`);
+  if (req.query.active === '1') clauses.push(`j.stage NOT IN ('Accepted','Rejected/Withdrawn')`);
   if (req.query.referred === '1') clauses.push('j.referred_by_contact_id IS NOT NULL');
   if (req.query.referred === '0') clauses.push('j.referred_by_contact_id IS NULL');
   if (req.query.q) {
@@ -109,9 +113,16 @@ router.patch('/:id', (req, res) => {
   if (body.stage !== undefined) {
     if (!STAGES.includes(body.stage)) return res.status(400).json({ error: `Unknown stage "${body.stage}"` });
     if (body.stage !== job.stage) {
+      // The UI always prompts for a reason before sending this request (RejectionReasonModal) —
+      // this is the server-side backstop so the requirement holds regardless of caller.
+      if (body.stage === 'Rejected/Withdrawn' && !(body.rejection_reason || '').trim()) {
+        return res.status(400).json({ error: 'A reason is required when marking a job as Rejected/Withdrawn' });
+      }
+      if (body.rejection_reason) body.rejection_reason = body.rejection_reason.trim().slice(0, REJECTION_REASON_MAX);
       logActivity({
         job_id: job.id, activity_type: 'stage_change',
-        title: `Moved to ${body.stage}`, detail: `Was ${job.stage}`,
+        title: `Moved to ${body.stage}`,
+        detail: body.rejection_reason ? `Was ${job.stage} — ${body.rejection_reason}` : `Was ${job.stage}`,
       });
       if (body.stage === 'Applied' && !job.applied_date && body.applied_date === undefined) {
         body.applied_date = localToday();

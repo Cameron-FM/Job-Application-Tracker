@@ -104,6 +104,7 @@ const fields = {
   raw_posting: data.raw_posting || '',
   notes: data.notes || '',
   referred_by_contact_id: referredByContactId,
+  rejection_reason: data.rejection_reason || '',
 };
 
 // Links the referrer to this specific job so they show up under "People" too.

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useFetch } from '../hooks';
-import { STAGES } from '../constants';
+import { STAGES, REJECTED_WITHDRAWN_STAGE } from '../constants';
+import { celebrateStageChange } from '../stageEffects';
+import { askRejectionReason } from '../rejectionReasonPrompt';
 import { StatusBadge, TypeBadge, DueBadge, ReferralBadge } from '../components/Badges';
 import Timeline from '../components/Timeline';
 import { JobFormModal, LinkContactModal, AttachDocModal, ActivityFormModal, CompanyDatalist } from '../components/forms';
@@ -23,7 +25,15 @@ export default function JobDetail() {
   const closeAndReload = () => { setModal(null); reload(); };
 
   const setStage = async (stage) => {
-    await api.patch(`/api/jobs/${job.id}`, { stage });
+    const oldStage = job.stage;
+    const payload = { stage };
+    if (stage === REJECTED_WITHDRAWN_STAGE && oldStage !== REJECTED_WITHDRAWN_STAGE) {
+      const reason = await askRejectionReason();
+      if (!reason) return; // cancelled — the <select> reverts on its own since it reflects job.stage
+      payload.rejection_reason = reason;
+    }
+    await api.patch(`/api/jobs/${job.id}`, payload);
+    celebrateStageChange(oldStage, stage);
     reload();
   };
 
@@ -116,6 +126,7 @@ export default function JobDetail() {
               <div><dt>Source</dt><dd>{job.source || '—'}</dd></div>
               <div><dt>Posting</dt><dd>{job.url ? <a href={job.url} target="_blank" rel="noreferrer">View posting ↗</a> : '—'}</dd></div>
               <div><dt>Application form</dt><dd>{job.application_url ? <a href={job.application_url} target="_blank" rel="noreferrer">Open application ↗</a> : '—'}</dd></div>
+              {job.rejection_reason && <div><dt>Reason</dt><dd>{job.rejection_reason}</dd></div>}
             </dl>
             {job.description && (
               <>

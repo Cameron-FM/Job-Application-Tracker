@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { db, FILES_DIR } = require('./db');
 
-const STAGES = ['Interested', 'Applied', 'Screening', 'Interviewing', 'Offer', 'Accepted', 'Rejected', 'Withdrawn'];
-const TERMINAL_STAGES = ['Accepted', 'Rejected', 'Withdrawn'];
+const STAGES = ['Interested', 'Applied', 'Screening', 'Interviewing', 'Final Interview', 'Offer', 'Accepted', 'Rejected/Withdrawn'];
+const TERMINAL_STAGES = ['Accepted', 'Rejected/Withdrawn'];
 
 // Date-only fields where an empty string from a form means "no date".
 const DATE_FIELDS = ['applied_date', 'next_step_due', 'last_contacted', 'next_followup_due'];

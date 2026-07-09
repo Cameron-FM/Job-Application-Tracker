@@ -535,6 +535,50 @@ input[type="checkbox"] { width: auto; }
 .doc-job-row:last-child { border-bottom: none; }
 .doc-job-row:hover { color: var(--accent); text-decoration: none; }
 
+/* ---------- stage celebration (confetti + toast) ---------- */
+
+.stage-celebration { position: fixed; inset: 0; pointer-events: none; z-index: 2000; overflow: hidden; }
+
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.95;
+  animation-name: confetti-fall;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+@keyframes confetti-fall {
+  from { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  to { transform: translate(var(--drift), 100vh) rotate(var(--rotate)); opacity: 0; }
+}
+
+.stage-celebration-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 2px solid var(--accent);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  animation: toast-pop 0.35s ease-out;
+}
+@keyframes toast-pop {
+  from { transform: translateX(-50%) translateY(-12px) scale(0.9); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+}
+
+.stage-celebration-accepted .stage-celebration-toast { border-color: #16a34a; color: #16a34a; }
+.stage-celebration-interview .stage-celebration-toast { border-color: #7c3aed; color: #7c3aed; }
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 900px) {

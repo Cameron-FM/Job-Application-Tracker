@@ -120,6 +120,11 @@ CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_id);
   ensureColumn('jobs', 'summary', "summary TEXT NOT NULL DEFAULT ''");
   ensureColumn('jobs', 'raw_posting', "raw_posting TEXT NOT NULL DEFAULT ''");
   ensureColumn('jobs', 'referred_by_contact_id', 'referred_by_contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL');
+  ensureColumn('jobs', 'rejection_reason', "rejection_reason TEXT NOT NULL DEFAULT ''");
+
+  // Data migration: 'Rejected' and 'Withdrawn' were merged into one stage, 'Rejected/Withdrawn'.
+  // Idempotent (no-op once no rows carry the old values) so it's safe to run on every startup.
+  db.exec(`UPDATE jobs SET stage = 'Rejected/Withdrawn' WHERE stage IN ('Rejected', 'Withdrawn')`);
 }
 
 // Auto-restore on a fresh device: if this DB has no user data yet and a backup with

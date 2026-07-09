@@ -89,6 +89,8 @@ Job Tracker Project/               ← project ROOT: only these user-facing item
 │       ├── vite.config.js  # dev server on 5173, proxies /api → 3400
 │       └── src/            # main.jsx App.jsx api.js hooks.js session.js constants.js utils.js
 │                           # searchUtils.js (shared by GlobalSearch + SearchResults, see §11)
+│                           # stageEffects.js (stage-change celebration trigger, see §11)
+│                           # rejectionReasonPrompt.js (async reason-prompt handler, see §11)
 │                           # styles.css + components/ + pages/ (as before)
 └── (README.md and CLAUDE.md sit at the root, above)
 ```
@@ -127,10 +129,21 @@ Defined in [server/db.js](server/db.js) inside `initSchema()`. All timestamps de
 - **jobs** — `id, company_id→companies (CASCADE), title, url, application_url,
   referred_by_contact_id→contacts (SET NULL), location, salary_range, source, stage,
   applied_date, next_step, next_step_due, summary, description, raw_posting, notes,
-  created_at, updated_at`
-  - `stage` ∈ `Interested, Applied, Screening, Interviewing, Offer, Accepted, Rejected, Withdrawn`
-    (`STAGES` in helpers.js + client constants.js — **keep both in sync**). The last three are
-    `TERMINAL_STAGES`; "active" = not terminal.
+  rejection_reason, created_at, updated_at`
+  - `stage` ∈ `Interested, Applied, Screening, Interviewing, Final Interview, Offer, Accepted,
+    Rejected/Withdrawn` (`STAGES` in helpers.js + client constants.js — **keep both in sync**, and note
+    every hardcoded `NOT IN ('Accepted','Rejected/Withdrawn')`/`IN ('Screening','Interviewing',
+    'Final Interview')` SQL literal scattered across jobs.js/companies.js/dashboard.js — there's no
+    single source of truth for those, see gotcha §12.21). `Accepted` and `Rejected/Withdrawn` are
+    `TERMINAL_STAGES`; "active" = not terminal. `Rejected` and `Withdrawn` used to be separate stages;
+    a one-time idempotent migration in db.js's `initSchema` folds any old rows into `Rejected/Withdrawn`
+    on every startup.
+  - `rejection_reason` — free text, max 200 chars (enforced client-side via the modal's `maxLength` and
+    server-side via truncation in the PATCH handler). **Required** whenever a PATCH changes `stage` to
+    `Rejected/Withdrawn` from something else — `routes/jobs.js` returns 400 without it — which is the
+    server-side backstop for the client's `RejectionReasonModal` (§11), which always prompts for one
+    first. Not required when a job is *created* directly at that stage (no "before" state to explain);
+    not required when other fields are edited without the stage itself changing.
   - `url` = where the posting lives; `application_url` = where you actually apply.
   - `summary` = one-liner for cards/tables; `description` = full detail; `raw_posting` = original verbatim.
 - **contacts** — `id, name, company_id→companies (SET NULL, nullable), role_title, contact_type,
@@ -360,7 +373,7 @@ the bundle as `applet.icns`); the `.ico` at `launcher/windows/`. Only the Swift 
 `GET /health` (bare — **not** `/api`-prefixed, by convention, and because the launcher scripts hard
 -code this exact path) in [server/index.js](server/index.js):
 ```json
-{ "status": "ok", "app": "job-tracker", "version": "1.8.0" }
+{ "status": "ok", "app": "job-tracker", "version": "1.9.0" }
 ```
 `version` is read live from the root `package.json` (`require('../package.json').version`) —
 **never hardcode it**; it'll silently go stale otherwise (this happened once already — see CHANGELOG).
@@ -475,6 +488,8 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
 - **jobs** — `GET /jobs` (filters: `stage, company_id, active=1, referred=0|1, q`), `POST /jobs`,
   `GET/PATCH/DELETE /jobs/:id`, link/unlink `POST/DELETE /jobs/:id/contacts/:cid`,
   `POST/DELETE /jobs/:id/documents/:did`. GET returns `company_name` + `referred_by_name`.
+  `PATCH /jobs/:id` → `400` if `stage` is being set to `Rejected/Withdrawn` without a non-empty
+  `rejection_reason` in the same request body (§5).
 - **companies** — CRUD; `GET /companies/:id` embeds its jobs + contacts.
 - **contacts** — CRUD; create accepts `link_company_jobs` + company_* fields; `GET /contacts/:id`
   embeds linked jobs (with `is_referrer`) + activities.
@@ -537,6 +552,46 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
   it there once** rather than duplicating the icon/label/route mapping in both places. Each result maps
   to a route (`/jobs/:id`, `/companies/:id`, `/people/:id`, `/cvs` for documents — there's no
   per-document detail route — or a job/contact's page for an activity).
+- **Stage celebration:** `stageEffects.js` exports `celebrateStageChange(oldStage, newStage)` — a pure
+  "does this transition deserve an effect" check that `window.dispatchEvent`s a `job-stage-celebration`
+  `CustomEvent` with `{ level: 'interview' | 'accepted' }` if so, otherwise a no-op. Two rules: **`level:
+  'interview'`** fires when `oldStage` is in the explicit `PRE_INTERVIEW_STAGES` list (`Interested`,
+  `Applied`) *and* `newStage` is in `INTERVIEW_STAGES` (`Screening`, `Interviewing`, `Final Interview`) —
+  i.e. only when *crossing into* the interview phase, not when moving between interview stages (Screening
+  → Interviewing does **not** re-trigger it). **`level: 'accepted'`** fires whenever `newStage ===
+  'Accepted'` and `oldStage !== 'Accepted'`, from any stage. It's deliberately decoupled from rendering:
+  `components/StageCelebration.jsx`
+  is mounted once in `Layout.jsx` (alongside `TextTooltip`/`GlobalSearch`, so it's live on every page) and
+  is the *only* thing that listens for that event and renders the hand-rolled CSS confetti + toast (no
+  library — a burst of absolutely-positioned `<span>`s animated via a `@keyframes` fall, matching this
+  project's no-new-dependency ethos). **Every call site that PATCHes a job's `stage` must call
+  `celebrateStageChange(oldStage, newStage)` right after a successful patch** — there are three today:
+  `JobDetail.jsx`'s stage `<select>`, `Jobs.jsx`'s `moveJob` (kanban drag, looks up the dragged card's old
+  stage from the already-loaded `jobs` list), and `forms.jsx`'s `JobFormModal` submit (covers every page
+  that opens the edit-job modal, since it's one shared component). If you add a fourth place a job's stage
+  can change, wire it in there too — nothing else needs to change (`StageCelebration` doesn't know or care
+  who dispatched the event). **User toggle:** `stageEffects.js` also exports `isCelebrationEnabled()` /
+  `setCelebrationEnabled(bool)`, backed by `localStorage['celebrations-enabled']` (device-local, **not**
+  `config.json`/`/api/settings` — this is a pure display preference, unrelated to the backup system that
+  endpoint otherwise owns). Absence of the key means enabled, so it's **on by default** for anyone who's
+  never touched the toggle. `celebrateStageChange` checks this first and no-ops entirely if disabled — the
+  event never dispatches, so `StageCelebration` doesn't need to know about the setting at all. The toggle
+  itself lives on the Settings page's "Preferences" card.
+- **Rejection reason prompt:** moving a job's `stage` to `Rejected/Withdrawn` requires a short reason
+  (§5) — enforced via an async, `window.confirm()`-style modal rather than a plain browser prompt.
+  `rejectionReasonPrompt.js` exports `askRejectionReason(): Promise<string|null>` (resolves to the
+  trimmed reason, or `null` if cancelled) and `registerRejectionReasonHandler(fn)`.
+  `components/RejectionReasonModal.jsx` is mounted once in `Layout.jsx` (same pattern as
+  `StageCelebration`) and registers itself as the handler on mount, resolving the pending promise when
+  the user saves or cancels. **All three stage-change call sites** (§ above) check `newStage ===
+  REJECTED_WITHDRAWN_STAGE (constants.js) && oldStage !== that` and, if so, `await
+  askRejectionReason()` *before* calling `api.patch` — a `null` result means the user cancelled, and
+  the caller returns early without patching anything (the UI element that "started" the change — a
+  `<select>`, a dropped kanban card — naturally reverts because it's controlled by server state that
+  was never touched). Inside `forms.jsx`'s `JobFormModal`, this required a small addition to the shared
+  `useSubmit` helper: `fn` can return `false` to silently abort the submit (stay on the form, no error
+  shown) instead of the normal "success → close" or "throw → show error" paths — needed because
+  cancelling the reason prompt mid-submit is neither.
 - **Enums/colours:** `constants.js` mirrors the server enums (STAGES, CONTACT_TYPES, CONVERSATION_STATUSES,
   ACTIVITY_TYPES, DOC_TYPES) + colour maps + `ACTIVITY_ICONS`. **If you change a server enum, change this too.**
 - **Dates/format:** `utils.js` — `todayStr`, `fmtDate` (`'7 Jul 2026'`), `isOverdue`, `isToday`.
@@ -626,6 +681,16 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
     (two up from app/server); if you move code around, that anchor and the launchers' path-resolution
     (`APP_DIR`/`ROOT_DIR` in launch.command, the `HERE`/`ROOT` computation in launch.bat, and
     `JobTrackerLauncher.cs`'s hardcoded relative path to launch.bat) are what must stay true.
+21. **`TERMINAL_STAGES`/the "is this an interview stage" set are NOT single-sourced everywhere.**
+    `helpers.js` and `constants.js` export `STAGES`/`TERMINAL_STAGES` as the canonical arrays, but several
+    SQL queries hardcode the terminal-stage list as a literal (`jobs.js`'s `active=1` filter, `companies.js`'s
+    `active_job_count` subquery, and three places in `dashboard.js`) rather than building the `IN (...)`
+    clause from `TERMINAL_STAGES` — and `dashboard.js`'s `interviewing` count separately hardcodes the
+    "which stages count as an interview" list (`'Screening','Interviewing','Final Interview'`), which
+    `stageEffects.js`'s `INTERVIEW_STAGES` array (client-side, for the stage-celebration trigger — §11)
+    also duplicates independently. **If you rename, add, or remove a stage — especially one that's
+    terminal or interview-related — grep for the old stage name across `app/server/routes/*.js` and
+    `app/client/src/stageEffects.js`; there is no single source of truth to update instead.**
 
 ---
 
@@ -675,6 +740,12 @@ data, never the real `data/` folder, and clean up stray background server proces
   `searchUtils.js` (label/plural/icon) and a case in that file's `subtitleFor()`/`routeFor()` → that's
   it — `GlobalSearch.jsx` and `SearchResults.jsx` both consume `annotateResult()` and need no changes.
   **Update §10/§11.**
+- **A new place a job's stage can be updated:** capture `oldStage` *before* the patch (from the job/row
+  you already have in scope). If `newStage === REJECTED_WITHDRAWN_STAGE && oldStage !== that`, `await
+  askRejectionReason()` (`rejectionReasonPrompt.js`) first and bail out (without patching) if it returns
+  `null`. Then `await api.patch(...)` (including `rejection_reason` in the body if the prompt returned
+  one), then call `celebrateStageChange(oldStage, newStage)` from `stageEffects.js`. No other file needs
+  to change. **Update §11.**
 
 ---
 

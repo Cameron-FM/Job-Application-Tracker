@@ -9,10 +9,10 @@ router.get('/', (req, res) => {
 
   const counts = {
     total_jobs: db.prepare('SELECT COUNT(*) AS n FROM jobs').get().n,
-    active_jobs: db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE stage NOT IN ('Accepted','Rejected','Withdrawn')`).get().n,
-    interviewing: db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE stage IN ('Screening','Interviewing')`).get().n,
+    active_jobs: db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE stage NOT IN ('Accepted','Rejected/Withdrawn')`).get().n,
+    interviewing: db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE stage IN ('Screening','Interviewing','Final Interview')`).get().n,
     offers: db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE stage = 'Offer'`).get().n,
-    overdue: db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE next_step_due < ? AND stage NOT IN ('Accepted','Rejected','Withdrawn')`).get(today).n
+    overdue: db.prepare(`SELECT COUNT(*) AS n FROM jobs WHERE next_step_due < ? AND stage NOT IN ('Accepted','Rejected/Withdrawn')`).get(today).n
       + db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE next_followup_due < ?').get(today).n,
     referred: db.prepare('SELECT COUNT(*) AS n FROM jobs WHERE referred_by_contact_id IS NOT NULL').get().n,
   };
@@ -20,7 +20,7 @@ router.get('/', (req, res) => {
   const job_next_steps = db.prepare(`
     SELECT j.id, j.title, j.stage, j.next_step, j.next_step_due, c.name AS company_name
     FROM jobs j JOIN companies c ON c.id = j.company_id
-    WHERE j.stage NOT IN ('Accepted','Rejected','Withdrawn')
+    WHERE j.stage NOT IN ('Accepted','Rejected/Withdrawn')
       AND (j.next_step_due IS NOT NULL OR j.next_step != '')
     ORDER BY j.next_step_due IS NULL, j.next_step_due
   `).all();

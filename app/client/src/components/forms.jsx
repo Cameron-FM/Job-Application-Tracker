@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import Modal from './Modal';
-import { STAGES, CONTACT_TYPES, CONVERSATION_STATUSES, ACTIVITY_TYPES, DOC_TYPES } from '../constants';
+import { STAGES, CONTACT_TYPES, CONVERSATION_STATUSES, ACTIVITY_TYPES, DOC_TYPES, REJECTED_WITHDRAWN_STAGE } from '../constants';
 import { todayStr } from '../utils';
+import { celebrateStageChange } from '../stageEffects';
+import { askRejectionReason } from '../rejectionReasonPrompt';
 
 export function Field({ label, full, children }) {
   return (
@@ -40,7 +42,10 @@ function useSubmit(fn, onDone) {
     setSaving(true);
     setError(null);
     try {
-      await fn();
+      // fn can return `false` to silently abort (e.g. a required prompt inside it was
+      // cancelled) — stay on the form with no error message, instead of treating it as saved.
+      const result = await fn();
+      if (result === false) { setSaving(false); return; }
       onDone();
     } catch (err) {
       setError(err.message);
@@ -77,10 +82,16 @@ export function JobFormModal({ job, companies, initialCompanyName, onClose, onSa
     description: job?.description || '',
     notes: job?.notes || '',
   });
-  const { submit, saving, error } = useSubmit(
-    () => (job ? api.patch(`/api/jobs/${job.id}`, form) : api.post('/api/jobs', form)),
-    onSaved
-  );
+  const { submit, saving, error } = useSubmit(async () => {
+    let payload = form;
+    if (job && form.stage === REJECTED_WITHDRAWN_STAGE && job.stage !== REJECTED_WITHDRAWN_STAGE) {
+      const reason = await askRejectionReason();
+      if (!reason) return false; // cancelled — abort silently, stay on the edit form
+      payload = { ...form, rejection_reason: reason };
+    }
+    await (job ? api.patch(`/api/jobs/${job.id}`, payload) : api.post('/api/jobs', payload));
+    if (job) celebrateStageChange(job.stage, form.stage);
+  }, onSaved);
 
   return (
     <Modal title={job ? 'Edit job' : 'Add job'} onClose={onClose} wide>
