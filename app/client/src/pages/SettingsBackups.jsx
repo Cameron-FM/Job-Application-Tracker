@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useFetch } from '../hooks';
 import Modal from '../components/Modal';
+import SettingsTabs from '../components/SettingsTabs';
 import { fmtDate } from '../utils';
-import { isCelebrationEnabled, setCelebrationEnabled } from '../stageEffects';
 
 function fmtBytes(n) {
   if (!n) return '—';
@@ -25,37 +25,41 @@ function countsSummary(c = {}) {
   return `${c.jobs || 0} jobs · ${c.companies || 0} companies · ${c.contacts || 0} contacts · ${c.documents || 0} CVs`;
 }
 
-export default function Settings() {
+// Numeric fields are kept as strings in form/savedForm (matching what number <input>s produce)
+// so the dirty comparison below isn't tripped up by a number-vs-string mismatch.
+function formFromConfig(c) {
+  return {
+    deviceName: c.deviceName,
+    backupDir: c.backupDir,
+    intervalMinutes: String(c.autoBackup.intervalMinutes),
+    autoEnabled: c.autoBackup.enabled,
+    backupOnClose: c.backupOnClose,
+    autoRestoreOnEmpty: c.autoRestoreOnEmpty,
+    retentionCount: String(c.retentionCount),
+    storageOverride: c.storageOverride || '',
+  };
+}
+
+export default function SettingsBackups() {
   const { data: status, reload: reloadStatus } = useFetch('/api/settings');
   const { data: backups, reload: reloadBackups } = useFetch('/api/backups');
   const [form, setForm] = useState(null);
+  const [savedForm, setSavedForm] = useState(null);
   const [notice, setNotice] = useState(null);   // { type, text }
   const [confirm, setConfirm] = useState(null);  // { title, body, danger, label, onConfirm }
   const [busy, setBusy] = useState(false);
-  const [celebrationsOn, setCelebrationsOn] = useState(isCelebrationEnabled);
-
-  const toggleCelebrations = (checked) => {
-    setCelebrationsOn(checked);
-    setCelebrationEnabled(checked);
-  };
 
   useEffect(() => {
     if (status && !form) {
-      const c = status.config;
-      setForm({
-        deviceName: c.deviceName,
-        backupDir: c.backupDir,
-        intervalMinutes: c.autoBackup.intervalMinutes,
-        autoEnabled: c.autoBackup.enabled,
-        backupOnClose: c.backupOnClose,
-        autoRestoreOnEmpty: c.autoRestoreOnEmpty,
-        retentionCount: c.retentionCount,
-        storageOverride: c.storageOverride || '',
-      });
+      const initial = formFromConfig(status.config);
+      setForm(initial);
+      setSavedForm(initial);
     }
   }, [status, form]);
 
   if (!status || !form) return <div className="page" />;
+
+  const dirty = JSON.stringify(form) !== JSON.stringify(savedForm);
 
   const refresh = () => { reloadStatus(); reloadBackups(); };
 
@@ -103,6 +107,7 @@ export default function Settings() {
         autoBackup: { enabled: form.autoEnabled, intervalMinutes: Number(form.intervalMinutes) },
         storageOverride: form.storageOverride || null,
       });
+      setSavedForm(form);
       setNotice({ type: 'ok', text: 'Settings saved.' });
       reloadStatus();
     } catch (e) {
@@ -119,7 +124,8 @@ export default function Settings() {
 
   return (
     <div className="page">
-      <div className="page-header"><h1>Settings &amp; Backups</h1></div>
+      <div className="page-header"><h1>Settings</h1></div>
+      <SettingsTabs />
 
       {/* How backups work */}
       <div className="banner">
@@ -214,16 +220,7 @@ export default function Settings() {
         {list.length === 0 && <div className="empty">No backups yet. Click “Back up now”, or wait for the automatic hourly backup.</div>}
       </div>
 
-      {/* Preferences */}
-      <div className="card">
-        <div className="card-header"><h2>Preferences</h2></div>
-        <label className="check full">
-          <input type="checkbox" checked={celebrationsOn} onChange={(e) => toggleCelebrations(e.target.checked)} />
-          🎉 Celebrate stage changes (confetti when a job reaches an interview stage or gets accepted)
-        </label>
-      </div>
-
-      {/* Settings form */}
+      {/* Backup settings */}
       <div className="card">
         <div className="card-header"><h2>Backup settings</h2></div>
         <div className="form-grid">
@@ -283,7 +280,7 @@ export default function Settings() {
           </label>
         </div>
         <div className="header-actions" style={{ marginTop: 14 }}>
-          <button className="btn btn-primary" disabled={busy} onClick={saveSettings}>Save settings</button>
+          <button className="btn btn-primary" disabled={busy || !dirty} onClick={saveSettings}>Save settings</button>
         </div>
       </div>
 

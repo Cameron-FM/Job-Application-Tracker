@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Jobs from './pages/Jobs';
@@ -8,7 +8,8 @@ import CompanyDetail from './pages/CompanyDetail';
 import People from './pages/People';
 import PersonDetail from './pages/PersonDetail';
 import CvLibrary from './pages/CvLibrary';
-import Settings from './pages/Settings';
+import SettingsPreferences from './pages/SettingsPreferences';
+import SettingsBackups from './pages/SettingsBackups';
 import SearchResults from './pages/SearchResults';
 
 export default function App() {
@@ -23,7 +24,9 @@ export default function App() {
         <Route path="/people" element={<People />} />
         <Route path="/people/:id" element={<PersonDetail />} />
         <Route path="/cvs" element={<CvLibrary />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<Navigate to="/settings/preferences" replace />} />
+        <Route path="/settings/preferences" element={<SettingsPreferences />} />
+        <Route path="/settings/backups" element={<SettingsBackups />} />
         <Route path="/search" element={<SearchResults />} />
       </Routes>
     </Layout>

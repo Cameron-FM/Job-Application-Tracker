@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## [1.10.0] — 2026-07-09
+
+Settings reorganized into Preferences/Backups sub-pages with a proper tab bar and per-section save.
+
+### Changed
+- **Settings split into two sub-pages**, `/settings/preferences` and `/settings/backups`, switched via
+  tabs (`/settings` redirects to Preferences). Every editable section now has its own Save button that
+  only enables once something's actually changed, instead of always being clickable or (for the
+  confetti toggle) applying instantly on click. Non-editable sections — status, backup history, the
+  Back-up-now/Restore/Delete actions — are unaffected, since those aren't a form with something to
+  leave unsaved.
+- **Restyled the Preferences/Backups switcher as a real tab bar** (underline + highlight on the active
+  tab, full-width bottom border) instead of the generic small-button toggle used elsewhere (e.g. the
+  Jobs page's Table/Board switch) — makes it read unambiguously as sub-page navigation rather than an
+  action button.
+
 ## [1.9.0] — 2026-07-09
 
 Stage list rework (Final Interview, merged Rejected/Withdrawn), stage-change celebrations with a

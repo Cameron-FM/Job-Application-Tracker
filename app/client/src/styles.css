@@ -266,6 +266,27 @@ input[type="checkbox"] { width: auto; }
 .toggle-row { display: flex; gap: 6px; margin-bottom: 0; }
 .modal .toggle-row { margin-bottom: 14px; }
 
+/* ---------- settings sub-nav tabs ---------- */
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 24px;
+}
+.settings-tab {
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.settings-tab:hover { color: var(--text); background: #f8fafc; text-decoration: none; }
+.settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #eef2ff; }
+
 /* ---------- table ---------- */
 
 .table { width: 100%; border-collapse: collapse; }

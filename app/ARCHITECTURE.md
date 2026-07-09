@@ -373,7 +373,7 @@ the bundle as `applet.icns`); the `.ico` at `launcher/windows/`. Only the Swift 
 `GET /health` (bare — **not** `/api`-prefixed, by convention, and because the launcher scripts hard
 -code this exact path) in [server/index.js](server/index.js):
 ```json
-{ "status": "ok", "app": "job-tracker", "version": "1.9.0" }
+{ "status": "ok", "app": "job-tracker", "version": "1.10.0" }
 ```
 `version` is read live from the root `package.json` (`require('../package.json').version`) —
 **never hardcode it**; it'll silently go stale otherwise (this happened once already — see CHANGELOG).
@@ -524,6 +524,21 @@ the central handler in index.js (better-sqlite3 is synchronous, so thrown errors
 - **Entry:** `main.jsx` starts the session heartbeat (§9.3) then → `BrowserRouter` → `App.jsx` defines
   routes inside `<Layout>`. Add a page = add a `pages/X.jsx` + a `<Route>` in App.jsx + (usually) a
   nav item in `components/Layout.jsx`.
+- **Settings is a sub-tabbed section, not one page:** `/settings` is just a `<Navigate>` redirect to
+  `/settings/preferences`; the two real routes are `/settings/preferences` (`SettingsPreferences.jsx`)
+  and `/settings/backups` (`SettingsBackups.jsx`), switched via `components/SettingsTabs.jsx` (two
+  `NavLink`s). The sidebar's single "Settings" nav item still points at bare `/settings` and stays
+  highlighted on either sub-page — Layout's `NavLink`s don't set `end`, so they match by path *prefix*,
+  and both sub-routes start with `/settings`. **Every editable settings section needs its own dirty-
+  detected Save button** (not always-enabled, not instant-apply): keep a `saved*` snapshot alongside the
+  live form state, disable Save via `JSON.stringify(form) !== JSON.stringify(saved)` (or a plain `!==`
+  for a single value), and set `saved = form` only after a successful save. `SettingsBackups.jsx`'s
+  numeric fields (`intervalMinutes`, `retentionCount`) are deliberately kept as **strings** in both
+  `form` and `savedForm` — a number `<input>`'s `onChange` always hands back a string, so comparing
+  against a `Number` from the API would falsely show "dirty" the instant the user so much as touched
+  the field without changing its value. Non-editable sections (status display, backup history, the
+  Back-up-now/Restore/Delete actions) don't need this pattern — they're immediate actions, not a form
+  with something to leave unsaved.
 - **Data fetching:** `api.js` exposes `api.get/post/patch/del/upload`; it throws `Error(server message)`
   on non-2xx. `hooks.js` `useFetch(url)` → `{ data, error, reload }`; `useDebouncedValue(value, ms)` for
   input-driven fetches (used by search). Pages fetch on mount and call `reload()` after mutations. There
