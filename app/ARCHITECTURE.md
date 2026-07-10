@@ -347,9 +347,12 @@ applet source or the icon.
 tiny (~20-line) wrapper, `launcher/windows/JobTrackerLauncher.cs`, that finds its own folder (the
 project root, where the `.exe` itself lives) and launches **`app/launcher/windows/launch.bat`**
 below it, hidden, then exits immediately; all the real launcher logic still lives in `launch.bat`
-alone, kept separate from application code. The compiled wrapper hardcodes that relative path
-(`Path.Combine(exeDir, "app", "launcher", "windows", "launch.bat")` — see `JobTrackerLauncher.cs`),
-so **the `.exe` must stay at the project root** (it locates `launch.bat` relative to itself) and
+alone, kept separate from application code. The compiled wrapper hardcodes that relative path via
+chained 2-argument `Path.Combine` calls (see `JobTrackerLauncher.cs`) — **deliberately not** the
+5-argument `Path.Combine(a,b,c,d,e)` overload, which only exists in .NET Framework 4.0+ and fails
+to compile against `csc.exe` from Framework 3.5 (`make_exe.bat`'s fallback if 4.0 isn't found —
+this broke a real Windows build with "no overload for method 'Combine' takes 5 arguments" until
+fixed). So **the `.exe` must stay at the project root** (it locates `launch.bat` relative to itself) and
 **`launch.bat` must stay at that exact nested path** — moving either breaks the pairing until
 `JobTrackerLauncher.cs` is updated and recompiled. `launch.bat` also remains fully double-clickable
 on its own from inside `app/launcher/windows/` (Windows runs `.bat` files directly, no wrapper
@@ -360,11 +363,13 @@ keep the root free of a bare `.bat` file.
 It's built by running `launcher/windows/make_exe.bat` **once, on an actual Windows machine**
 (compiles `JobTrackerLauncher.cs` with **`csc.exe`**, the C# compiler that ships with every Windows
 install's .NET Framework — no Visual Studio, no downloads — and bakes in the icon at
-`launcher/windows/JobTracker.ico` via `/win32icon:`). `make_exe.bat` is confirmed to compile
-successfully on a real Windows machine. Its actual double-click **launch behavior** (does it
-correctly bring up the server/browser end-to-end) is still unverified from this dev environment,
-since development happens on macOS — treat that part as carefully-written-but-unverified until
-confirmed on a real Windows run.
+`launcher/windows/JobTracker.ico` via `/win32icon:`). `make_exe.bat` has now been run on a real
+Windows machine and hit the 5-argument-`Path.Combine` compile failure above (fixed in
+`JobTrackerLauncher.cs`) — **re-verify the compile succeeds** on that machine after pulling the
+fix, since it hasn't yet been confirmed clean end-to-end. Its actual double-click **launch
+behavior** (does it correctly bring up the server/browser end-to-end) is also still unverified
+from this dev environment, since development happens on macOS — treat both as
+carefully-written-but-unverified until confirmed on a real Windows run.
 
 **Rebuild required after moving `launch.bat` into `app/launcher/windows/`:** the previously-built
 `Job Tracker (Windows).exe` was compiled when `JobTrackerLauncher.cs` still looked for `launch.bat`
@@ -734,11 +739,16 @@ JSON1 functions — nothing else in this codebase uses them).
     modified/relocated copy used for testing needs its `PORT`/`HEALTH_URL` edited **and** that port
     explicitly exported so the child `npm start` process actually binds it (the scripts' local `PORT=…`
     assignment is not itself `export`ed to the child unless you add that, or export it in the invoking shell).
-15. **The Windows `.exe` build step is confirmed working; its launch behavior isn't yet.**
-    `make_exe.bat`/`JobTrackerLauncher.cs` have been run on a real Windows machine and successfully
-    produced `Job Tracker (Windows).exe`. Whether double-clicking it correctly launches the server
-    end-to-end hasn't been confirmed from this (macOS) dev environment. `launch.bat` itself is the
-    long-tested, trustworthy entry point the `.exe` wraps — if the `.exe` ever misbehaves, double-click
+15. **`csc.exe` version varies by machine — don't use `Path.Combine` overloads beyond 2 args in
+    `JobTrackerLauncher.cs`.** `make_exe.bat` prefers a .NET Framework 4.0 `csc.exe` but falls back
+    to 3.5 if that's all a machine has, and 3.5's `Path.Combine` only has a 2-argument overload — a
+    3/4/5-arg call compiles fine against 4.0 but fails on 3.5 with "no overload for method 'Combine'
+    takes N arguments", which is exactly what happened on a real Windows run. Fixed by chaining
+    2-arg `Path.Combine` calls instead, which compiles against either. Same constraint applies to
+    any future edit of that file — stick to the 2-arg overload, or bump `make_exe.bat` to require
+    4.0+ explicitly. Compile success and double-click launch behavior are both **still unverified
+    end-to-end** on a real Windows machine as of this fix — `launch.bat` itself is the long-tested,
+    trustworthy entry point the `.exe` wraps; if the `.exe` ever misbehaves, double-click
     `launch.bat` directly to isolate whether the problem is in the wrapper or the launcher logic.
 16. **A double-clicked `.app`/`.bat` does NOT load the user's shell profile** (`~/.zshrc`, `~/.bash_profile`),
     so `PATH` is the minimal GUI default — a Node that works fine in Terminal can be invisible to the

@@ -21,7 +21,11 @@ class JobTrackerLauncher
     static void Main()
     {
         string exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        string batPath = Path.Combine(exeDir, "app", "launcher", "windows", "launch.bat");
+        // Chained 2-arg Path.Combine calls (not the 5-arg overload) so this compiles
+        // against .NET Framework 3.5's csc.exe too, not just 4.0+ — make_exe.bat
+        // falls back to 3.5 if a 4.0 compiler isn't found on the machine.
+        string batPath = Path.Combine(Path.Combine(Path.Combine(Path.Combine(
+            exeDir, "app"), "launcher"), "windows"), "launch.bat");
 
         var psi = new ProcessStartInfo
         {
