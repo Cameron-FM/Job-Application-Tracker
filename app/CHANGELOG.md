@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [1.12.2] — 2026-07-10
+
+### Changed
+- **Default backup retention lowered from 50 to 5** ("Keep newest N backups" in Settings → Backups).
+  New installs now keep the 5 most recent backups by default instead of 50. Existing installs that
+  have already saved a backup-settings value keep whatever they set; this only changes the default
+  for anyone who hasn't customized it.
+
 ## [1.12.1] — 2026-07-10
 
 Windows launcher fix — the desktop `.exe` now builds and runs correctly.

@@ -11,7 +11,7 @@ const DEFAULTS = {
   autoBackup: { enabled: true, intervalMinutes: 60 },
   backupOnClose: true,
   autoRestoreOnEmpty: true,
-  retentionCount: 50,
+  retentionCount: 5,
   // Manual cloud-sync override (a provider name string, or null = auto-detect).
   // Covers setups path-detection can't see — e.g. Google Drive's "sync this
   // folder from computer" feature mirroring data/backups in place, where the
