@@ -1,6 +1,6 @@
 {
   "name": "job-tracker",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "private": true,
   "description": "Personal job application tracker (mini-ATS) — runs locally, data stays on disk",
   "scripts": {

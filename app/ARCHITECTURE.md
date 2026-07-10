@@ -363,13 +363,11 @@ keep the root free of a bare `.bat` file.
 It's built by running `launcher/windows/make_exe.bat` **once, on an actual Windows machine**
 (compiles `JobTrackerLauncher.cs` with **`csc.exe`**, the C# compiler that ships with every Windows
 install's .NET Framework — no Visual Studio, no downloads — and bakes in the icon at
-`launcher/windows/JobTracker.ico` via `/win32icon:`). `make_exe.bat` has now been run on a real
-Windows machine and hit the 5-argument-`Path.Combine` compile failure above (fixed in
-`JobTrackerLauncher.cs`) — **re-verify the compile succeeds** on that machine after pulling the
-fix, since it hasn't yet been confirmed clean end-to-end. Its actual double-click **launch
-behavior** (does it correctly bring up the server/browser end-to-end) is also still unverified
-from this dev environment, since development happens on macOS — treat both as
-carefully-written-but-unverified until confirmed on a real Windows run.
+`launcher/windows/JobTracker.ico` via `/win32icon:`). **As of v1.12.1 this is confirmed working
+end-to-end on a real Windows machine** — `make_exe.bat` compiles cleanly (after the .NET 3.5
+`Path.Combine` fix, see below) and double-clicking the resulting `Job Tracker (Windows).exe`
+correctly installs deps, starts the server, and opens the browser. The committed `.exe` at the
+project root is that verified build.
 
 **Rebuild required after moving `launch.bat` into `app/launcher/windows/`:** the previously-built
 `Job Tracker (Windows).exe` was compiled when `JobTrackerLauncher.cs` still looked for `launch.bat`
@@ -391,7 +389,7 @@ the bundle as `applet.icns`); the `.ico` at `launcher/windows/`. Only the Swift 
 `GET /health` (bare — **not** `/api`-prefixed, by convention, and because the launcher scripts hard
 -code this exact path) in [server/index.js](server/index.js):
 ```json
-{ "status": "ok", "app": "job-tracker", "version": "1.12.0" }
+{ "status": "ok", "app": "job-tracker", "version": "1.12.1" }
 ```
 `version` is read live from the root `package.json` (`require('../package.json').version`) —
 **never hardcode it**; it'll silently go stale otherwise (this happened once already — see CHANGELOG).
@@ -746,10 +744,12 @@ JSON1 functions — nothing else in this codebase uses them).
     takes N arguments", which is exactly what happened on a real Windows run. Fixed by chaining
     2-arg `Path.Combine` calls instead, which compiles against either. Same constraint applies to
     any future edit of that file — stick to the 2-arg overload, or bump `make_exe.bat` to require
-    4.0+ explicitly. Compile success and double-click launch behavior are both **still unverified
-    end-to-end** on a real Windows machine as of this fix — `launch.bat` itself is the long-tested,
-    trustworthy entry point the `.exe` wraps; if the `.exe` ever misbehaves, double-click
-    `launch.bat` directly to isolate whether the problem is in the wrapper or the launcher logic.
+    4.0+ explicitly. **As of v1.12.1 the compile *and* the double-click end-to-end launch are both
+    confirmed working on a real Windows machine**, and the committed root `.exe` is that verified
+    build. `launch.bat` remains the long-tested entry point the `.exe` wraps; if the `.exe` ever
+    misbehaves, double-click `launch.bat` directly to isolate whether the problem is in the wrapper
+    or the launcher logic. Note `launch.bat` runs fully hidden, so a silent no-op means checking
+    `data\logs\app.log` (or watching for the mshta alert popups) is the way to diagnose.
 16. **A double-clicked `.app`/`.bat` does NOT load the user's shell profile** (`~/.zshrc`, `~/.bash_profile`),
     so `PATH` is the minimal GUI default — a Node that works fine in Terminal can be invisible to the
     launcher. This bit us: this machine's Node lives at `~/.local/node/bin` (per CLAUDE.md), which isn't

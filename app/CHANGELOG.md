@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## [1.12.1] — 2026-07-10
+
+Windows launcher fix — the desktop `.exe` now builds and runs correctly.
+
+### Fixed
+- **`make_exe.bat` no longer fails to compile on machines with only .NET Framework 3.5.**
+  `JobTrackerLauncher.cs` used `Path.Combine`'s 5-argument overload, which only exists in .NET
+  4.0+, so it failed with *"no overload for method 'Combine' takes 5 arguments"* when the build
+  script fell back to a 3.5 compiler. Rewritten with chained 2-argument `Path.Combine` calls that
+  compile against either version.
+- Replaced the committed `Job Tracker (Windows).exe` with a fresh build from that fix, now
+  **confirmed working end-to-end on a real Windows machine** (compiles cleanly, and double-clicking
+  it installs dependencies, starts the server, and opens the browser). Retires the long-standing
+  "carefully-written-but-unverified" caveat on the Windows launcher.
+
 ## [1.12.0] — 2026-07-09
 
 Standardized tags for jobs, companies, people and documents — a fixed, in-app-managed vocabulary,
